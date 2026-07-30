@@ -24,8 +24,9 @@ import {
 import { AdminAuth } from './components/Admin/AdminAuth';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { AdminBar } from './components/Admin/AdminBar';
+import { CheckoutModal } from './components/CheckoutModal';
 import { AdminUser, FabricCategory, CurrencyCode, CURRENCY_SYMBOLS, Product } from './types/admin';
-import { CORE_FABRICS, CORE_FABRICS as INITIAL_CORE_FABRICS } from './data/mockData';
+import { CORE_FABRICS, CORE_FABRICS as INITIAL_CORE_FABRICS, INITIAL_PRODUCTS } from './data/mockData';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 
 // IMAGE ASSETS
@@ -161,9 +162,58 @@ export default function App() {
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [isLeadSubmitted, setIsLeadSubmitted] = useState(false);
 
-  // Catalog Drawer Modal State
+  // Catalog & Cart Modal State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
+
+  const [storefrontProducts, setStorefrontProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('dsp_admin_products');
+    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
+
+  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
+
+  // Sync Storefront Products with Supabase
+  useEffect(() => {
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .from('products')
+        .select('*')
+        .eq('status', 'active')
+        .then(({ data, error }) => {
+          if (data && data.length > 0 && !error) {
+            setStorefrontProducts(data as Product[]);
+          }
+        });
+    }
+  }, []);
+
+  const handleAddToCart = (product: Product) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+  };
+
+  const handleUpdateCartQuantity = (productId: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((item) => {
+          if (item.product.id === productId) {
+            const newQty = item.quantity + delta;
+            return newQty > 0 ? { ...item, quantity: newQty } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as { product: Product; quantity: number }[]
+    );
+  };
 
   // Mobile Menu
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -909,6 +959,202 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* -------------------------------------------------------------
+          CATALOG & CART DRAWER MODAL
+      ------------------------------------------------------------- */}
+      <AnimatePresence>
+        {isCatalogOpen && (
+          <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCatalogOpen(false)}
+              className="absolute inset-0 bg-[#1B2A4A]/60 backdrop-blur-xs"
+            />
+
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-2xl bg-[#FAFAFA] h-full shadow-2xl flex flex-col z-10 border-l border-[#D1B464]/30"
+            >
+              {/* Drawer Header */}
+              <div className="p-6 bg-[#1B2A4A] text-white flex items-center justify-between border-b border-[#D1B464]/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#D1B464] text-[#1B2A4A] flex items-center justify-center font-bold">
+                    <ShoppingBag className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif-title text-xl font-bold text-[#FAFAFA]">DSP Fabric Collection</h3>
+                    <p className="text-xs text-[#D1B464]">Authentic Direct-from-Factory Textile Catalog</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Currency Selector */}
+                  <div className="flex items-center bg-white/10 rounded-full p-1 border border-white/20">
+                    {(['USD', 'NGN', 'GBP', 'EUR'] as CurrencyCode[]).map((curr) => (
+                      <button
+                        key={curr}
+                        onClick={() => setActiveCurrency(curr)}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded-full transition-colors cursor-pointer ${
+                          activeCurrency === curr ? 'bg-[#D1B464] text-[#1B2A4A]' : 'text-gray-300 hover:text-white'
+                        }`}
+                      >
+                        {CURRENCY_SYMBOLS[curr]} {curr}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setIsCatalogOpen(false)}
+                    className="p-2 rounded-full hover:bg-white/10 text-white transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Drawer Body: Products Grid & Cart Summary */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-[#1B2A4A] uppercase tracking-wider">
+                    Available Adire Fabrics ({storefrontProducts.length})
+                  </h4>
+                  {cart.length > 0 && (
+                    <span className="text-xs font-semibold text-[#1B2A4A] bg-[#D1B464]/30 px-3 py-1 rounded-full border border-[#D1B464]">
+                      {cart.reduce((sum, item) => sum + item.quantity, 0)} Items in Cart
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {storefrontProducts.map((product) => {
+                    const price = product.price[activeCurrency] || product.price['USD'];
+                    const inCartItem = cart.find((c) => c.product.id === product.id);
+
+                    return (
+                      <div
+                        key={product.id}
+                        className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-[#D1B464] transition-all flex flex-col justify-between shadow-xs"
+                      >
+                        <div>
+                          <div className="h-40 bg-gray-100 relative overflow-hidden">
+                            <img
+                              src={product.imageUrl || FABRIC_SWATCH_IMAGE}
+                              alt={product.title}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover"
+                            />
+                            <span className="absolute top-2 right-2 px-2.5 py-1 rounded-full bg-[#1B2A4A]/80 text-[#D1B464] text-[10px] font-bold uppercase tracking-wider backdrop-blur-xs">
+                              {product.category}
+                            </span>
+                          </div>
+                          <div className="p-4 space-y-2">
+                            <h5 className="font-serif-title text-base font-bold text-[#1B2A4A] line-clamp-1">
+                              {product.title}
+                            </h5>
+                            <p className="text-xs text-gray-600 line-clamp-2">
+                              {product.description}
+                            </p>
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-base font-bold text-[#1B2A4A]">
+                                {CURRENCY_SYMBOLS[activeCurrency]}
+                                {price.toLocaleString()}
+                                <span className="text-[10px] font-normal text-gray-500"> / yard</span>
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  product.inStock ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                {product.inStock ? `${product.stockYards} Yds In Stock` : 'Out of Stock'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-4 pt-0">
+                          {inCartItem ? (
+                            <div className="flex items-center justify-between bg-[#FAFAFA] border border-[#E5E7EB] rounded-xl p-1.5">
+                              <button
+                                onClick={() => handleUpdateCartQuantity(product.id, -1)}
+                                className="w-8 h-8 rounded-lg bg-white text-[#1B2A4A] font-bold hover:bg-gray-200 flex items-center justify-center border border-gray-200 cursor-pointer"
+                              >
+                                -
+                              </button>
+                              <span className="text-xs font-bold text-[#1B2A4A]">
+                                {inCartItem.quantity} Yds in Cart
+                              </span>
+                              <button
+                                onClick={() => handleUpdateCartQuantity(product.id, 1)}
+                                className="w-8 h-8 rounded-lg bg-[#1B2A4A] text-white font-bold hover:bg-[#23375e] flex items-center justify-center cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleAddToCart(product)}
+                              disabled={!product.inStock}
+                              className="w-full py-2.5 rounded-xl bg-[#1B2A4A] text-[#FAFAFA] text-xs font-bold uppercase tracking-wider hover:bg-[#23375e] transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              Add to Bag
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Drawer Footer / Cart Checkout Bar */}
+              {cart.length > 0 && (
+                <div className="p-6 bg-white border-t border-gray-200 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-600">Subtotal</span>
+                    <span className="font-serif-title text-xl font-bold text-[#1B2A4A]">
+                      {CURRENCY_SYMBOLS[activeCurrency]}
+                      {cart
+                        .reduce((sum, item) => {
+                          const p = item.product.price[activeCurrency] || item.product.price['USD'];
+                          return sum + p * item.quantity;
+                        }, 0)
+                        .toLocaleString()}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setIsCatalogOpen(false);
+                      setIsCheckoutOpen(true);
+                    }}
+                    className="w-full py-4 rounded-full bg-[#D1B464] text-[#1B2A4A] font-bold text-xs uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Proceed to Express Checkout ({cart.reduce((s, i) => s + i.quantity, 0)} Yds)</span>
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* -------------------------------------------------------------
+          EXPRESS CHECKOUT MODAL WITH SHIPPING & COUPON VALIDATION
+      ------------------------------------------------------------- */}
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        cart={cart}
+        activeCurrency={activeCurrency}
+        onClearCart={() => setCart([])}
+      />
     </div>
   );
 }

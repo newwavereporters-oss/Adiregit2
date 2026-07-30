@@ -50,6 +50,66 @@ export interface Lead {
   status: 'active' | 'contacted';
 }
 
+export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
+export type PaymentStatus = 'unpaid' | 'paid';
+
+export interface OrderItem {
+  id?: string;
+  orderId?: string;
+  productId: string;
+  productTitle: string;
+  productImage?: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  shippingAddress: string;
+  shippingCity: string;
+  shippingState?: string;
+  shippingCountry: string;
+  shippingLocationId?: string;
+  shippingLocationName?: string;
+  shippingFee: number;
+  subtotalAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  currency: CurrencyCode;
+  paymentStatus: PaymentStatus;
+  status: OrderStatus;
+  couponCode?: string;
+  adminNotes?: string;
+  createdAt: string;
+  items?: OrderItem[];
+}
+
+export interface ShippingLocation {
+  id: string;
+  name: string;
+  country: string;
+  timeframe: string;
+  rates: MultiCurrencyPrice;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountPercent: number;
+  leadEmail?: string;
+  usageCount: number;
+  maxUses?: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface AdminUser {
   id: string;
   fullName: string;
