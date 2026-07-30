@@ -36,10 +36,60 @@ const COLLAGE_IMAGE_2 = 'https://images.unsplash.com/photo-1534528741775-53994a6
 const COLLAGE_IMAGE_3 = 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80';
 
 export default function App() {
+  // Helper to resolve current view state from window location pathname or hash
+  const getViewFromUrl = (): 'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard' => {
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+
+    if (path.includes('admin-dashboard') || hash.includes('admin-dashboard')) {
+      return 'admin-dashboard';
+    }
+    if (
+      path.includes('admin-signin') ||
+      path.includes('admin-login') ||
+      hash.includes('admin-signin') ||
+      hash.includes('admin-login')
+    ) {
+      return 'admin-login';
+    }
+    if (path.includes('admin-register') || hash.includes('admin-register')) {
+      return 'admin-register';
+    }
+    return 'storefront';
+  };
+
   // Navigation / View State
   const [currentView, setCurrentView] = useState<
     'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard'
-  >('storefront');
+  >(() => getViewFromUrl());
+
+  // Programmatic URL Navigation Helper
+  const navigateTo = (view: 'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard') => {
+    setCurrentView(view);
+    let targetPath = '/';
+    if (view === 'admin-dashboard') targetPath = '/admin-dashboard';
+    else if (view === 'admin-login') targetPath = '/admin-signin';
+    else if (view === 'admin-register') targetPath = '/admin-register';
+
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ view }, '', targetPath);
+    }
+  };
+
+  // Sync URL Path changes on Back/Forward browser navigation
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentView(getViewFromUrl());
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
 
   // Auth Session Loading Lock
   const [authLoading, setAuthLoading] = useState(true);
@@ -194,7 +244,7 @@ export default function App() {
   const handleAdminLogout = () => {
     localStorage.removeItem('dsp_admin_session');
     setCurrentAdmin(null);
-    setCurrentView('admin-login');
+    navigateTo('admin-login');
   };
 
   // RENDER ADMIN VIEWS
@@ -204,9 +254,9 @@ export default function App() {
         initialMode="login"
         onLoginSuccess={(user) => {
           setCurrentAdmin(user);
-          setCurrentView('admin-dashboard');
+          navigateTo('admin-dashboard');
         }}
-        onNavigateToStorefront={() => setCurrentView('storefront')}
+        onNavigateToStorefront={() => navigateTo('storefront')}
       />
     );
   }
@@ -217,9 +267,9 @@ export default function App() {
         initialMode="register"
         onLoginSuccess={(user) => {
           setCurrentAdmin(user);
-          setCurrentView('admin-dashboard');
+          navigateTo('admin-dashboard');
         }}
-        onNavigateToStorefront={() => setCurrentView('storefront')}
+        onNavigateToStorefront={() => navigateTo('storefront')}
       />
     );
   }
@@ -244,9 +294,9 @@ export default function App() {
           initialMode="login"
           onLoginSuccess={(user) => {
             setCurrentAdmin(user);
-            setCurrentView('admin-dashboard');
+            navigateTo('admin-dashboard');
           }}
-          onNavigateToStorefront={() => setCurrentView('storefront')}
+          onNavigateToStorefront={() => navigateTo('storefront')}
         />
       );
     }
@@ -255,7 +305,7 @@ export default function App() {
       <AdminDashboard
         currentUser={currentAdmin}
         onLogout={handleAdminLogout}
-        onNavigateToStorefront={() => setCurrentView('storefront')}
+        onNavigateToStorefront={() => navigateTo('storefront')}
       />
     );
   }
@@ -267,7 +317,7 @@ export default function App() {
       {/* Floating Global Admin Bar for Logged In Admin Users */}
       <AdminBar
         currentAdmin={currentAdmin}
-        onNavigateDashboard={() => setCurrentView('admin-dashboard')}
+        onNavigateDashboard={() => navigateTo('admin-dashboard')}
         onLogout={handleAdminLogout}
       />
       
@@ -849,7 +899,7 @@ export default function App() {
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-xs text-gray-400">
             <span>&copy; {new Date().getFullYear()} DSP Adire Textile Guild. Abeokuta, Ogun State, Nigeria.</span>
             <button
-              onClick={() => setCurrentView(currentAdmin ? 'admin-dashboard' : 'admin-login')}
+              onClick={() => navigateTo(currentAdmin ? 'admin-dashboard' : 'admin-login')}
               className="inline-flex items-center gap-1 text-[11px] text-gray-400/80 hover:text-gray-600 transition-colors cursor-pointer opacity-60 hover:opacity-100"
               title="Staff Access"
             >
