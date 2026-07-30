@@ -14,11 +14,13 @@ import {
   Truck,
   Menu,
   X,
+  Package,
 } from 'lucide-react';
 import { Product, CurrencyCode, FabricCategory, FABRIC_CATEGORY_LABELS, CURRENCY_SYMBOLS } from '../types/admin';
 import { INITIAL_PRODUCTS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { convertFromNGN, formatCurrencyValue } from '../utils/currencyAndBank';
+import { OrderStatusModal } from '../components/OrderStatusModal';
 
 interface ShopPageProps {
   onNavigateToProduct: (slug: string) => void;
@@ -40,6 +42,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [mutedMap, setMutedMap] = useState<Record<string, boolean>>({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [isTrackerOpen, setIsTrackerOpen] = useState<boolean>(false);
 
   // Fetch active products from Supabase or fallback
   useEffect(() => {
@@ -50,33 +53,50 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           const { data, error } = await supabase
             .from('products')
             .select('*')
-            .eq('status', 'active');
+            .eq('status', 'active')
+            .order('created_at', { ascending: false });
 
           if (!error && data && data.length > 0) {
-            // Map database rows if needed
-            const mapped: Product[] = data.map((item: any) => ({
-              id: item.id,
-              title: item.title,
-              slug: item.slug || item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-              description: item.description || '',
-              category: item.category || 'adire_cotton',
-              status: item.status || 'active',
-              prices: item.prices || {
-                ngn: item.price_ngn || 250000,
-                usd: item.price_usd || 156,
-                gbp: item.price_gbp || 131,
-                eur: item.price_eur || 151,
-              },
-              media: item.media || {
-                primaryUrl: item.primary_image_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-                galleryUrls: item.gallery_urls || [],
-                videoUrl: item.video_url || 'https://assets.mixkit.co/videos/preview/mixkit-silk-fabric-waving-in-the-wind-41544-large.mp4',
-              },
-              stockQuantity: item.stock_quantity ?? 10,
-              inStock: item.in_stock ?? true,
-              createdAt: item.created_at || new Date().toISOString(),
-              updatedAt: item.updated_at || new Date().toISOString(),
-            }));
+            // Map database rows smoothly
+            const mapped: Product[] = data.map((item: any) => {
+              const rawNgn = Number(String(item.price_ngn ?? item.prices?.ngn ?? 250000).replace(/[^0-9.]/g, '')) || 0;
+              const computedUsd = Number(item.price_usd) || (item.prices?.usd ? Number(item.prices.usd) : Math.round((rawNgn / 1600) * 100) / 100);
+              const computedGbp = Number(item.price_gbp) || (item.prices?.gbp ? Number(item.prices.gbp) : Math.round((rawNgn / 1900) * 100) / 100);
+              const computedEur = Number(item.price_eur) || (item.prices?.eur ? Number(item.prices.eur) : Math.round((rawNgn / 1650) * 100) / 100);
+
+              const galleryList = [
+                item.gallery_image_url_1,
+                item.gallery_image_url_2,
+                item.gallery_image_url_3,
+                item.gallery_image_url_4,
+              ].filter(Boolean);
+
+              const galleryUrls = galleryList.length > 0 ? galleryList : (item.gallery_urls || item.media?.galleryUrls || []);
+
+              return {
+                id: item.id || `dsp-prod-${Date.now()}`,
+                title: item.title,
+                slug: item.slug || item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                description: item.description || '',
+                category: item.fabric_category || item.category || 'adire_cotton',
+                status: item.status || 'active',
+                prices: {
+                  ngn: rawNgn,
+                  usd: computedUsd,
+                  gbp: computedGbp,
+                  eur: computedEur,
+                },
+                media: {
+                  primaryUrl: item.primary_image_url || item.media?.primaryUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+                  galleryUrls,
+                  videoUrl: item.video_url || item.media?.videoUrl || '',
+                },
+                stockQuantity: item.stock_quantity ?? item.stockQuantity ?? 10,
+                inStock: item.in_stock ?? item.inStock ?? true,
+                createdAt: item.created_at || new Date().toISOString(),
+                updatedAt: item.updated_at || new Date().toISOString(),
+              };
+            });
             if (isMounted) {
               setProducts(mapped);
               setLoading(false);
@@ -160,6 +180,15 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                   </button>
                 ))}
               </div>
+
+              {/* Track Order Button */}
+              <button
+                onClick={() => setIsTrackerOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#1B2A4A]/20 hover:border-[#1B2A4A] text-[#1B2A4A] text-xs font-bold transition-all cursor-pointer whitespace-nowrap bg-gray-50"
+              >
+                <Package className="w-3.5 h-3.5 text-[#D1B464]" />
+                <span>Track Order</span>
+              </button>
 
               {onNavigateToAdmin && (
                 <button
@@ -491,6 +520,12 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           </div>
         </div>
       </footer>
+
+      {/* REAL-TIME ORDER TRACKER MODAL */}
+      <OrderStatusModal
+        isOpen={isTrackerOpen}
+        onClose={() => setIsTrackerOpen(false)}
+      />
     </div>
   );
 };

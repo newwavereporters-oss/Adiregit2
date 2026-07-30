@@ -19,17 +19,20 @@ import {
   DollarSign,
   Send,
   MessageSquare,
+  Package,
 } from 'lucide-react';
 
 import { AdminAuth } from './components/Admin/AdminAuth';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { AdminBar } from './components/Admin/AdminBar';
 import { CheckoutModal } from './components/CheckoutModal';
+import { OrderStatusModal } from './components/OrderStatusModal';
 import { ShopPage } from './pages/ShopPage';
 import { ProductSalesPage } from './pages/ProductSalesPage';
 import { AdminUser, FabricCategory, CurrencyCode, CURRENCY_SYMBOLS, Product } from './types/admin';
 import { CORE_FABRICS, CORE_FABRICS as INITIAL_CORE_FABRICS, INITIAL_PRODUCTS } from './data/mockData';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { detectUserCurrency, saveUserCurrencyPreference } from './utils/geoIp';
 
 // IMAGE ASSETS
 const HERO_IMAGE = '/src/assets/images/adire_hero_fashion_1785421009712.jpg';
@@ -194,10 +197,30 @@ export default function App() {
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
   const [isLeadSubmitted, setIsLeadSubmitted] = useState(false);
 
-  // Catalog & Cart Modal State
+  // Catalog & Cart & Order Status Modal State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
+  const [orderStatusInitialId, setOrderStatusInitialId] = useState('');
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('NGN');
+
+  // Auto-detect IP location and set user currency (defaults to NGN for Nigerian visitors)
+  useEffect(() => {
+    let isMounted = true;
+    detectUserCurrency().then((res) => {
+      if (isMounted) {
+        setActiveCurrency(res.currency);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleCurrencyChange = (newCurrency: CurrencyCode) => {
+    setActiveCurrency(newCurrency);
+    saveUserCurrencyPreference(newCurrency);
+  };
 
   const [storefrontProducts, setStorefrontProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('dsp_admin_products');
@@ -398,7 +421,7 @@ export default function App() {
       <ShopPage
         onNavigateToProduct={(slug) => navigateTo('product-sales', slug)}
         activeCurrency={activeCurrency}
-        onChangeCurrency={(c) => setActiveCurrency(c)}
+        onChangeCurrency={handleCurrencyChange}
         onNavigateHome={() => navigateTo('storefront')}
         onNavigateToAdmin={() => navigateTo('admin-dashboard')}
       />
@@ -411,7 +434,7 @@ export default function App() {
       <ProductSalesPage
         slug={selectedProductSlug}
         activeCurrency={activeCurrency}
-        onChangeCurrency={(c) => setActiveCurrency(c)}
+        onChangeCurrency={handleCurrencyChange}
         onNavigateBack={() => navigateTo('shop')}
       />
     );
@@ -457,6 +480,16 @@ export default function App() {
             >
               Products
             </button>
+            <button
+              onClick={() => {
+                setOrderStatusInitialId('');
+                setIsOrderStatusOpen(true);
+              }}
+              className="hover:text-[#1B2A4A] text-[#1B2A4A]/80 font-bold transition-all relative py-1 cursor-pointer flex items-center gap-1.5"
+            >
+              <Package className="w-4 h-4 text-[#D1B464]" />
+              <span>Track Order</span>
+            </button>
             <a href="#promise" className="hover:text-[#1B2A4A] hover:font-semibold transition-all relative py-1">
               Direct-to-Factory
             </a>
@@ -470,6 +503,34 @@ export default function App() {
 
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Currency Selector */}
+            <div className="flex items-center bg-gray-100 p-1 rounded-full border border-gray-200">
+              {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((code) => (
+                <button
+                  key={code}
+                  onClick={() => handleCurrencyChange(code)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    activeCurrency === code
+                      ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs'
+                      : 'text-gray-600 hover:text-[#1B2A4A]'
+                  }`}
+                >
+                  {CURRENCY_SYMBOLS[code]} {code}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setOrderStatusInitialId('');
+                setIsOrderStatusOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#1B2A4A]/20 hover:border-[#1B2A4A] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap bg-white/80"
+            >
+              <Package className="w-3.5 h-3.5 text-[#D1B464]" />
+              <span>Track Order</span>
+            </button>
+
             <button
               onClick={() => navigateTo('shop')}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-xs cursor-pointer whitespace-nowrap"
@@ -509,6 +570,17 @@ export default function App() {
                   className="text-left text-base font-serif-title font-bold text-[#1B2A4A] py-1 border-b border-gray-100 cursor-pointer"
                 >
                   Products
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setOrderStatusInitialId('');
+                    setIsOrderStatusOpen(true);
+                  }}
+                  className="text-left text-base font-serif-title font-bold text-[#1B2A4A] py-1 border-b border-gray-100 cursor-pointer flex items-center gap-2"
+                >
+                  <Package className="w-4 h-4 text-[#D1B464]" />
+                  <span>Track Order Status</span>
                 </button>
                 <a href="#promise" onClick={() => setMobileMenuOpen(false)} className="text-base font-serif-title font-medium text-[#1A1A1A] py-1 border-b border-gray-100">
                   Direct-to-Factory Promise
@@ -1220,6 +1292,16 @@ export default function App() {
         cart={cart}
         activeCurrency={activeCurrency}
         onClearCart={() => setCart([])}
+      />
+
+      {/* -------------------------------------------------------------
+          REAL-TIME ORDER STATUS LOOKUP MODAL
+      ------------------------------------------------------------- */}
+      <OrderStatusModal
+        isOpen={isOrderStatusOpen}
+        onClose={() => setIsOrderStatusOpen(false)}
+        initialOrderId={orderStatusInitialId}
+        onNavigateToShop={() => navigateTo('shop')}
       />
     </div>
   );
