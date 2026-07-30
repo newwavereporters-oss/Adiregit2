@@ -60,6 +60,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   // Inventory & Stock
   const [stockQuantity, setStockQuantity] = useState<number>(10);
   const [inStock, setInStock] = useState<boolean>(true);
+  const [allowCoupons, setAllowCoupons] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Auto NGN currency conversion handler
+  const handlePriceNgnChange = (val: string) => {
+    const rawNum = Number(val.replace(/[^0-9.]/g, '')) || 0;
+    setPriceNGN(rawNum);
+    setPriceUSD(Math.round((rawNum / 1600) * 100) / 100);
+    setPriceGBP(Math.round((rawNum / 1900) * 100) / 100);
+    setPriceEUR(Math.round((rawNum / 1650) * 100) / 100);
+  };
 
   // Auto-generate slug when title changes (if user hasn't typed custom slug)
   const handleTitleChange = (newTitle: string) => {
@@ -106,9 +117,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setStatus('active');
 
       setPriceNGN(250000);
-      setPriceUSD(195);
-      setPriceGBP(150);
-      setPriceEUR(180);
+      setPriceUSD(156.25);
+      setPriceGBP(131.58);
+      setPriceEUR(151.52);
 
       setPrimaryUrl('/src/assets/images/adire_hero_fashion_1785421009712.jpg');
       setGalleryUrl1('/src/assets/images/adire_artisan_craft_1785421029164.jpg');
@@ -119,39 +130,58 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
       setStockQuantity(12);
       setInStock(true);
+      setAllowCoupons(true);
     }
   }, [productToEdit, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
-    const galleryUrls = [galleryUrl1, galleryUrl2, galleryUrl3, galleryUrl4].filter(
-      (url) => url.trim().length > 0
-    );
+    try {
+      const galleryUrls = [galleryUrl1, galleryUrl2, galleryUrl3, galleryUrl4].filter(
+        (url) => url.trim().length > 0
+      );
 
-    const productPayload: Partial<Product> = {
-      title,
-      slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      description,
-      category,
-      status,
-      prices: {
-        ngn: Number(priceNGN) || 0,
-        usd: Number(priceUSD) || 0,
-        gbp: Number(priceGBP) || 0,
-        eur: Number(priceEUR) || 0,
-      },
-      media: {
-        primaryUrl: primaryUrl || '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
-        galleryUrls,
-        videoUrl: videoUrl || undefined,
-      },
-      stockQuantity: Number(stockQuantity) || 0,
-      inStock: stockQuantity > 0 ? inStock : false,
-      updatedAt: new Date().toISOString(),
-    };
+      const cleanNgn = Number(String(priceNGN).replace(/[^0-9.]/g, '')) || 0;
+      const computedUsd = Number(priceUSD) || Math.round((cleanNgn / 1600) * 100) / 100;
+      const computedGbp = Number(priceGBP) || Math.round((cleanNgn / 1900) * 100) / 100;
+      const computedEur = Number(priceEUR) || Math.round((cleanNgn / 1650) * 100) / 100;
 
-    onSave(productPayload);
+      const autoSlug = (slug || title)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+
+      const productPayload: Partial<Product> = {
+        title,
+        slug: autoSlug,
+        description,
+        category,
+        status,
+        prices: {
+          ngn: cleanNgn,
+          usd: computedUsd,
+          gbp: computedGbp,
+          eur: computedEur,
+        },
+        media: {
+          primaryUrl: primaryUrl || '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
+          galleryUrls,
+          videoUrl: videoUrl || undefined,
+        },
+        stockQuantity: Number(stockQuantity) || 0,
+        inStock: stockQuantity > 0 ? inStock : false,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await onSave(productPayload);
+    } catch (err: any) {
+      console.error('Submission error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -294,7 +324,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     required
                     min={0}
                     value={priceNGN}
-                    onChange={(e) => setPriceNGN(Number(e.target.value))}
+                    onChange={(e) => handlePriceNgnChange(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-white border border-[#E5E7EB] text-sm font-bold text-[#1A1A1A]"
                   />
                 </div>

@@ -185,6 +185,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     testSupabaseConnection().then((res) => setSupabaseStatus(res));
   }, []);
 
+  // SUPABASE HELPER TO MAP ROW TO PRODUCT
+  const mapSupabaseProductToProduct = (row: any): Product => {
+    const rawNgn = Number(String(row.price_ngn ?? row.prices?.ngn ?? 0).replace(/[^0-9.]/g, '')) || 0;
+    const computedUsd = Number(row.price_usd) || (row.prices?.usd ? Number(row.prices.usd) : Math.round((rawNgn / 1600) * 100) / 100);
+    const computedGbp = Number(row.price_gbp) || (row.prices?.gbp ? Number(row.prices.gbp) : Math.round((rawNgn / 1900) * 100) / 100);
+    const computedEur = Number(row.price_eur) || (row.prices?.eur ? Number(row.prices.eur) : Math.round((rawNgn / 1650) * 100) / 100);
+
+    const galleryList = [
+      row.gallery_image_url_1,
+      row.gallery_image_url_2,
+      row.gallery_image_url_3,
+      row.gallery_image_url_4,
+    ].filter(Boolean);
+
+    return {
+      id: row.id || `dsp-prod-${Date.now()}`,
+      title: row.title || 'Untitled Fabric',
+      slug: row.slug || (row.title ? row.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'fabric'),
+      description: row.description || '',
+      category: row.fabric_category || row.category || 'adire_cotton',
+      status: row.status || 'active',
+      prices: {
+        ngn: rawNgn,
+        usd: computedUsd,
+        gbp: computedGbp,
+        eur: computedEur,
+      },
+      media: {
+        primaryUrl: row.primary_image_url || row.primaryUrl || '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
+        galleryUrls: galleryList.length > 0 ? galleryList : (row.gallery_urls || row.media?.galleryUrls || []),
+        videoUrl: row.video_url || row.videoUrl || undefined,
+      },
+      stockQuantity: row.stock_quantity ?? row.stockQuantity ?? 10,
+      inStock: row.in_stock ?? row.inStock ?? true,
+      createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+      updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+    };
+  };
+
   // FETCH SUPABASE DATA IF CONFIGURED
   useEffect(() => {
     if (isSupabaseConfigured && supabase) {
@@ -193,7 +232,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         .from('products')
         .select('*')
         .then(({ data, error }) => {
-          if (data && data.length > 0 && !error) setProducts(data as Product[]);
+          if (data && data.length > 0 && !error) {
+            setProducts(data.map(mapSupabaseProductToProduct));
+          }
         });
 
       // Leads
@@ -484,62 +525,116 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // --- PRODUCT HANDLERS ---
   const handleSaveProduct = async (productData: Partial<Product>) => {
+    // 1. Data Sanitization & Math
+    const rawNgnInput = productData.prices?.ngn ?? 200000;
+    const cleanPriceNgn = Number(String(rawNgnInput).replace(/[^0-9.]/g, '')) || 0;
+
+    // Currency Auto-Conversion
+    const computedUsd = Number((cleanPriceNgn / 1600).toFixed(2));
+    const computedGbp = Number((cleanPriceNgn / 1900).toFixed(2));
+    const computedEur = Number((cleanPriceNgn / 1650).toFixed(2));
+
+    const finalPriceUsd = productData.prices?.usd || computedUsd;
+    const finalPriceGbp = productData.prices?.gbp || computedGbp;
+    const finalPriceEur = productData.prices?.eur || computedEur;
+
+    // Slug generation
+    const rawTitle = productData.title?.trim() || 'Untitled Fabric';
+    const computedSlug = (productData.slug || rawTitle)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+
+    const galleryArr = productData.media?.galleryUrls || [];
+    const stockQty = Number(productData.stockQuantity) || 10;
+    const isStockAvailable = stockQty > 0 ? (productData.inStock ?? true) : false;
+
+    // Construct Supabase Insert/Update Payload according to exact schema specification
+    const payload = {
+      title: rawTitle,
+      slug: computedSlug,
+      description: productData.description || '',
+      fabric_category: productData.category || 'adire_cotton',
+      category: productData.category || 'adire_cotton',
+      status: productData.status || 'active',
+      price_ngn: cleanPriceNgn,
+      price_usd: finalPriceUsd,
+      price_gbp: finalPriceGbp,
+      price_eur: finalPriceEur,
+      primary_image_url: productData.media?.primaryUrl || '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
+      gallery_image_url_1: galleryArr[0] || null,
+      gallery_image_url_2: galleryArr[1] || null,
+      gallery_image_url_3: galleryArr[2] || null,
+      gallery_image_url_4: galleryArr[3] || null,
+      video_url: productData.media?.videoUrl || null,
+      in_stock: isStockAvailable,
+      stock_quantity: stockQty,
+      allow_coupons: true,
+      prices: {
+        ngn: cleanPriceNgn,
+        usd: finalPriceUsd,
+        gbp: finalPriceGbp,
+        eur: finalPriceEur,
+      },
+      media: {
+        primaryUrl: productData.media?.primaryUrl || '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
+        galleryUrls: galleryArr,
+        videoUrl: productData.media?.videoUrl,
+      },
+      updated_at: new Date().toISOString(),
+    };
+
     if (productToEdit) {
+      // UPDATE EXISTING PRODUCT
       const updatedProducts = products.map((p) =>
         p.id === productToEdit.id ? ({ ...p, ...productData } as Product) : p
       );
       setProducts(updatedProducts);
 
       if (isSupabaseConfigured && supabase) {
-        const dbRecord = {
-          title: productData.title,
-          slug: productData.slug,
-          description: productData.description,
-          category: productData.category,
-          status: productData.status,
-          prices: productData.prices,
-          media: productData.media,
-          price_ngn: productData.prices?.ngn,
-          price_usd: productData.prices?.usd,
-          price_gbp: productData.prices?.gbp,
-          price_eur: productData.prices?.eur,
-          primary_image_url: productData.media?.primaryUrl,
-          video_url: productData.media?.videoUrl,
-          gallery_urls: productData.media?.galleryUrls,
-          stock_quantity: productData.stockQuantity,
-          in_stock: productData.inStock,
-          updated_at: new Date().toISOString(),
-        };
-
         const { error } = await supabase
           .from('products')
-          .update(dbRecord)
+          .update(payload)
           .eq('id', productToEdit.id);
 
         if (error) {
           console.error('Supabase Error updating product:', error.message);
-          showToast(`Supabase update error: ${error.message}`);
+          showToast(`Error: ${error.message}`);
+          alert(`Failed to update product in Supabase: ${error.message}`);
         } else {
-          showToast(`Product "${productData.title}" updated in Supabase!`);
+          showToast(`Product "${rawTitle}" updated in Supabase!`);
+          const { data: refreshed } = await supabase.from('products').select('*');
+          if (refreshed && refreshed.length > 0) {
+            setProducts(refreshed.map(mapSupabaseProductToProduct));
+          }
         }
       } else {
-        showToast(`Product "${productData.title}" updated!`);
+        showToast(`Product "${rawTitle}" updated locally!`);
       }
     } else {
+      // CREATE NEW PRODUCT
+      const newId = `dsp-prod-${Date.now()}`;
       const newProduct: Product = {
-        id: `dsp-prod-${Date.now()}`,
-        title: productData.title || 'Untitled Fabric',
-        slug: productData.slug || 'untitled-fabric',
+        id: newId,
+        title: rawTitle,
+        slug: computedSlug,
         description: productData.description || '',
         category: productData.category || 'adire_cotton',
         status: productData.status || 'active',
-        prices: productData.prices || { ngn: 200000, usd: 150, gbp: 120, eur: 140 },
-        media: productData.media || {
-          primaryUrl: '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
-          galleryUrls: [],
+        prices: {
+          ngn: cleanPriceNgn,
+          usd: finalPriceUsd,
+          gbp: finalPriceGbp,
+          eur: finalPriceEur,
         },
-        stockQuantity: productData.stockQuantity ?? 10,
-        inStock: productData.inStock ?? true,
+        media: {
+          primaryUrl: productData.media?.primaryUrl || '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
+          galleryUrls: galleryArr,
+          videoUrl: productData.media?.videoUrl,
+        },
+        stockQuantity: stockQty,
+        inStock: isStockAvailable,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -547,38 +642,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setProducts([newProduct, ...products]);
 
       if (isSupabaseConfigured && supabase) {
-        const dbPayload = {
-          id: newProduct.id,
-          title: newProduct.title,
-          slug: newProduct.slug,
-          description: newProduct.description,
-          category: newProduct.category,
-          status: newProduct.status,
-          prices: newProduct.prices,
-          media: newProduct.media,
-          price_ngn: newProduct.prices.ngn,
-          price_usd: newProduct.prices.usd,
-          price_gbp: newProduct.prices.gbp,
-          price_eur: newProduct.prices.eur,
-          primary_image_url: newProduct.media.primaryUrl,
-          video_url: newProduct.media.videoUrl,
-          gallery_urls: newProduct.media.galleryUrls,
-          stock_quantity: newProduct.stockQuantity,
-          in_stock: newProduct.inStock,
-          created_at: newProduct.createdAt,
-          updated_at: newProduct.updatedAt,
+        const createPayload = {
+          id: newId,
+          created_at: new Date().toISOString(),
+          ...payload,
         };
 
-        const { data, error } = await supabase.from('products').insert([dbPayload]);
+        const { data, error } = await supabase.from('products').insert([createPayload]);
 
         if (error) {
           console.error('Supabase Error adding product:', error.message);
-          showToast(`Failed to save to Supabase: ${error.message}`);
+          showToast(`Failed to save: ${error.message}`);
+          alert(`Failed to save product to Supabase: ${error.message}`);
         } else {
-          showToast(`Product "${newProduct.title}" saved successfully to Supabase!`);
+          showToast(`Product "${rawTitle}" saved successfully to Supabase!`);
+          // Refresh list from Supabase
+          const { data: refreshed } = await supabase.from('products').select('*');
+          if (refreshed && refreshed.length > 0) {
+            setProducts(refreshed.map(mapSupabaseProductToProduct));
+          }
         }
       } else {
-        showToast(`New product "${newProduct.title}" created locally!`);
+        showToast(`New product "${rawTitle}" created locally!`);
       }
     }
 
