@@ -19,7 +19,9 @@ import {
   Play,
   Volume2,
   VolumeX,
+  FileText,
 } from 'lucide-react';
+import { FormattedProductDescription } from '../components/FormattedProductDescription';
 import {
   Product,
   CurrencyCode,
@@ -562,9 +564,13 @@ I will attach my payment receipt here.`;
               </div>
             </div>
 
-            <p className="text-sm text-gray-600 leading-relaxed font-light">
-              {product.description}
-            </p>
+            <div className="bg-[#FAFAFA] p-4 sm:p-5 rounded-2xl border border-gray-200/80">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#1B2A4A] block mb-2 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#D1B464]" />
+                Product Highlights
+              </span>
+              <FormattedProductDescription text={product.description} compact={true} />
+            </div>
 
             {/* Quick-Jump "Order Now" Button */}
             <button
@@ -692,6 +698,27 @@ I will attach my payment receipt here.`;
             )}
           </div>
         )}
+      </section>
+
+      {/* FULL PRODUCT DETAILS & SPECIFICATION BREAKDOWN */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-10 space-y-6">
+          <div className="flex items-center gap-3 border-b border-gray-200 pb-4">
+            <div className="w-10 h-10 rounded-2xl bg-[#1B2A4A] text-[#D1B464] flex items-center justify-center shrink-0 shadow-xs">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-[#D1B464] uppercase tracking-widest block">
+                Comprehensive Overview
+              </span>
+              <h2 className="font-serif-title text-2xl sm:text-3xl font-black text-[#1B2A4A]">
+                Product Features & Styling Guide
+              </h2>
+            </div>
+          </div>
+
+          <FormattedProductDescription text={product.description} />
+        </div>
       </section>
 
       {/* C. EMBEDDED ORDER PROCESSING & CHECKOUT SECTION */}

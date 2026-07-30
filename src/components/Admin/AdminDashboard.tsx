@@ -483,16 +483,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // --- PRODUCT HANDLERS ---
-  const handleSaveProduct = (productData: Partial<Product>) => {
+  const handleSaveProduct = async (productData: Partial<Product>) => {
     if (productToEdit) {
       const updatedProducts = products.map((p) =>
         p.id === productToEdit.id ? ({ ...p, ...productData } as Product) : p
       );
       setProducts(updatedProducts);
-      showToast(`Product "${productData.title}" updated!`);
 
       if (isSupabaseConfigured && supabase) {
-        supabase.from('products').update(productData).eq('id', productToEdit.id);
+        const dbRecord = {
+          title: productData.title,
+          slug: productData.slug,
+          description: productData.description,
+          category: productData.category,
+          status: productData.status,
+          prices: productData.prices,
+          media: productData.media,
+          price_ngn: productData.prices?.ngn,
+          price_usd: productData.prices?.usd,
+          price_gbp: productData.prices?.gbp,
+          price_eur: productData.prices?.eur,
+          primary_image_url: productData.media?.primaryUrl,
+          video_url: productData.media?.videoUrl,
+          gallery_urls: productData.media?.galleryUrls,
+          stock_quantity: productData.stockQuantity,
+          in_stock: productData.inStock,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error } = await supabase
+          .from('products')
+          .update(dbRecord)
+          .eq('id', productToEdit.id);
+
+        if (error) {
+          console.error('Supabase Error updating product:', error.message);
+          showToast(`Supabase update error: ${error.message}`);
+        } else {
+          showToast(`Product "${productData.title}" updated in Supabase!`);
+        }
+      } else {
+        showToast(`Product "${productData.title}" updated!`);
       }
     } else {
       const newProduct: Product = {
@@ -514,10 +545,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       };
 
       setProducts([newProduct, ...products]);
-      showToast(`New product "${newProduct.title}" created!`);
 
       if (isSupabaseConfigured && supabase) {
-        supabase.from('products').insert([newProduct]);
+        const dbPayload = {
+          id: newProduct.id,
+          title: newProduct.title,
+          slug: newProduct.slug,
+          description: newProduct.description,
+          category: newProduct.category,
+          status: newProduct.status,
+          prices: newProduct.prices,
+          media: newProduct.media,
+          price_ngn: newProduct.prices.ngn,
+          price_usd: newProduct.prices.usd,
+          price_gbp: newProduct.prices.gbp,
+          price_eur: newProduct.prices.eur,
+          primary_image_url: newProduct.media.primaryUrl,
+          video_url: newProduct.media.videoUrl,
+          gallery_urls: newProduct.media.galleryUrls,
+          stock_quantity: newProduct.stockQuantity,
+          in_stock: newProduct.inStock,
+          created_at: newProduct.createdAt,
+          updated_at: newProduct.updatedAt,
+        };
+
+        const { data, error } = await supabase.from('products').insert([dbPayload]);
+
+        if (error) {
+          console.error('Supabase Error adding product:', error.message);
+          showToast(`Failed to save to Supabase: ${error.message}`);
+        } else {
+          showToast(`Product "${newProduct.title}" saved successfully to Supabase!`);
+        }
+      } else {
+        showToast(`New product "${newProduct.title}" created locally!`);
       }
     }
 
@@ -525,13 +586,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setProductToEdit(null);
   };
 
-  const handleDeleteProduct = (id: string, title: string) => {
+  const handleDeleteProduct = async (id: string, title: string) => {
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
       setProducts(products.filter((p) => p.id !== id));
-      showToast(`Product "${title}" deleted.`);
 
       if (isSupabaseConfigured && supabase) {
-        supabase.from('products').delete().eq('id', id);
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        if (error) {
+          console.error('Supabase Error deleting product:', error.message);
+          showToast(`Error deleting from Supabase: ${error.message}`);
+        } else {
+          showToast(`Product "${title}" deleted from Supabase.`);
+        }
+      } else {
+        showToast(`Product "${title}" deleted.`);
       }
     }
   };
