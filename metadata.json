@@ -1,0 +1,6 @@
+{
+  "name": "DSP Adire",
+  "description": "Luxury hand-dyed African fabric brand showcasing authentic Yoruba Adire textile artistry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
