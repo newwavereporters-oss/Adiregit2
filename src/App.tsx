@@ -23,8 +23,10 @@ import {
 
 import { AdminAuth } from './components/Admin/AdminAuth';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
+import { AdminBar } from './components/Admin/AdminBar';
 import { AdminUser, FabricCategory, CurrencyCode, CURRENCY_SYMBOLS, Product } from './types/admin';
 import { CORE_FABRICS, CORE_FABRICS as INITIAL_CORE_FABRICS } from './data/mockData';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 
 // IMAGE ASSETS
 const HERO_IMAGE = '/src/assets/images/adire_hero_fashion_1785421009712.jpg';
@@ -39,11 +41,64 @@ export default function App() {
     'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard'
   >('storefront');
 
+  // Auth Session Loading Lock
+  const [authLoading, setAuthLoading] = useState(true);
+
   // Logged In Admin State
   const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(() => {
     const savedSession = localStorage.getItem('dsp_admin_session');
     return savedSession ? JSON.parse(savedSession) : null;
   });
+
+  // Supabase Auth State Listener with Loading Lock
+  useEffect(() => {
+    async function checkAuthSession() {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const adminUser: AdminUser = {
+              id: session.user.id,
+              fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Master Admin',
+              email: session.user.email || 'admin@dspadire.com',
+              role: 'Master Admin',
+              registeredAt: session.user.created_at || new Date().toISOString(),
+            };
+            setCurrentAdmin(adminUser);
+            localStorage.setItem('dsp_admin_session', JSON.stringify(adminUser));
+          }
+        } catch (err) {
+          console.error("Auth session check error:", err);
+        }
+      }
+      setAuthLoading(false);
+    }
+
+    checkAuthSession();
+
+    if (isSupabaseConfigured && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          const adminUser: AdminUser = {
+            id: session.user.id,
+            fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Master Admin',
+            email: session.user.email || 'admin@dspadire.com',
+            role: 'Master Admin',
+            registeredAt: session.user.created_at || new Date().toISOString(),
+          };
+          setCurrentAdmin(adminUser);
+          localStorage.setItem('dsp_admin_session', JSON.stringify(adminUser));
+        } else if (session === null && !localStorage.getItem('dsp_admin_session')) {
+          setCurrentAdmin(null);
+        }
+        setAuthLoading(false);
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, []);
 
   // Storefront Active Fabric Selection
   const [selectedFabricId, setSelectedFabricId] = useState<string>('adire-cotton');
@@ -75,32 +130,54 @@ export default function App() {
       ? CORE_FABRICS
       : CORE_FABRICS.filter((f) => f.category === fabricFilter);
 
-  // Handle Lead Submission from Homepage
-  const handleLeadSubmit = (e: React.FormEvent) => {
+  // Handle Lead Submission from Homepage (Inserts into Supabase `leads` table)
+  const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!leadName || !leadContact) return;
 
     setIsSubmittingLead(true);
 
-    setTimeout(() => {
-      // Save lead to shared local storage so Admin Dashboard leads table updates live!
-      const newLead = {
-        id: `lead-${Date.now()}`,
-        fullName: leadName,
-        email: leadContact.includes('@') ? leadContact : `${leadName.toLowerCase().replace(/\s+/g, '')}@customer.ng`,
-        whatsappNumber: leadContact.includes('@') ? '+234 800 000 0000' : leadContact,
-        discountCode: 'DSPINSIDER15',
-        fabricPreference: leadFabricPref,
-        dateSubscribed: new Date().toISOString().replace('T', ' ').slice(0, 16),
-        status: 'active' as const,
-      };
+    const emailPayload = leadContact.includes('@')
+      ? leadContact
+      : `${leadName.toLowerCase().replace(/\s+/g, '')}@customer.ng`;
+    const whatsappPayload = leadContact.includes('@') ? '+234 800 000 0000' : leadContact;
 
+    const newLead = {
+      id: `lead-${Date.now()}`,
+      fullName: leadName,
+      email: emailPayload,
+      whatsappNumber: whatsappPayload,
+      discountCode: 'DSPINSIDER15',
+      fabricPreference: leadFabricPref,
+      dateSubscribed: new Date().toISOString().replace('T', ' ').slice(0, 16),
+      status: 'active' as const,
+    };
+
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.from('leads').insert([
+          {
+            full_name: leadName,
+            email: emailPayload,
+            whatsapp_number: whatsappPayload,
+            discount_code: 'DSPINSIDER15',
+          },
+        ]);
+
+        if (error) {
+          console.error("Supabase Lead Insertion Error:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Supabase Lead Insertion Error:", error);
+    } finally {
+      // Always store locally so UI updates immediately
       const existingLeads = JSON.parse(localStorage.getItem('dsp_admin_leads') || '[]');
       localStorage.setItem('dsp_admin_leads', JSON.stringify([newLead, ...existingLeads]));
 
       setIsSubmittingLead(false);
       setIsLeadSubmitted(true);
-    }, 800);
+    }
   };
 
   // Swatch Inquiry Submit
@@ -148,6 +225,18 @@ export default function App() {
   }
 
   if (currentView === 'admin-dashboard') {
+    if (authLoading) {
+      return (
+        <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-12 h-12 rounded-full border-3 border-[#D1B464] border-t-transparent animate-spin mb-4" />
+          <h2 className="font-serif-title font-bold text-xl text-[#1B2A4A] tracking-wider mb-1">
+            DSP ADIRE ADMIN
+          </h2>
+          <p className="text-xs text-gray-500 font-medium">Verifying admin session credentials...</p>
+        </div>
+      );
+    }
+
     if (!currentAdmin) {
       // Auth Guard Redirect
       return (
@@ -174,6 +263,13 @@ export default function App() {
   // RENDER STOREFRONT HOMEPAGE VIEW
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1A1A1A] font-sans adire-watermark-bg relative overflow-x-hidden selection:bg-[#D1B464]/30">
+      
+      {/* Floating Global Admin Bar for Logged In Admin Users */}
+      <AdminBar
+        currentAdmin={currentAdmin}
+        onNavigateDashboard={() => setCurrentView('admin-dashboard')}
+        onLogout={handleAdminLogout}
+      />
       
       {/* -------------------------------------------------------------
           1. NAVIGATION BAR
