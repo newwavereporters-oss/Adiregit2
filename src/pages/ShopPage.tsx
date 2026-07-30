@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   CheckCircle,
   Truck,
+  Menu,
+  X,
 } from 'lucide-react';
 import { Product, CurrencyCode, FabricCategory, FABRIC_CATEGORY_LABELS, CURRENCY_SYMBOLS } from '../types/admin';
 import { INITIAL_PRODUCTS } from '../data/mockData';
@@ -37,6 +39,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [mutedMap, setMutedMap] = useState<Record<string, boolean>>({});
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Fetch active products from Supabase or fallback
   useEffect(() => {
@@ -124,48 +127,133 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1B2A4A] font-sans selection:bg-[#D1B464] selection:text-[#1B2A4A]">
       {/* HEADER / NAVIGATION BAR */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onNavigateHome}
-              className="font-serif-title text-xl sm:text-2xl font-black text-[#1B2A4A] tracking-wider cursor-pointer hover:opacity-80 transition-opacity"
-            >
-              DSP <span className="text-[#D1B464]">ADIRE</span>
-            </button>
-            <span className="hidden md:inline-block px-3 py-1 rounded-full bg-[#D1B464]/15 text-[#1B2A4A] text-xs font-bold border border-[#D1B464]/40">
-              Video Catalog
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 sm:gap-6">
-            {/* Currency Selector Switcher */}
-            <div className="flex items-center bg-gray-100 p-1 rounded-full border border-gray-200">
-              {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((code) => (
-                <button
-                  key={code}
-                  onClick={() => onChangeCurrency(code)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    activeCurrency === code
-                      ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs'
-                      : 'text-gray-600 hover:text-[#1B2A4A]'
-                  }`}
-                >
-                  {CURRENCY_SYMBOLS[code]} {code}
-                </button>
-              ))}
+          {/* DESKTOP HEADER */}
+          <div className="hidden md:flex items-center justify-between w-full">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onNavigateHome}
+                className="font-serif-title text-xl sm:text-2xl font-black text-[#1B2A4A] tracking-wider cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap"
+              >
+                DSP <span className="text-[#D1B464]">ADIRE</span>
+              </button>
+              <span className="px-3 py-1 rounded-full bg-[#D1B464]/15 text-[#1B2A4A] text-xs font-bold border border-[#D1B464]/40 whitespace-nowrap">
+                Video Catalog
+              </span>
             </div>
 
-            {onNavigateToAdmin && (
+            <div className="flex items-center gap-4">
+              {/* Currency Selector Switcher */}
+              <div className="flex items-center bg-gray-100 p-1 rounded-full border border-gray-200">
+                {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((code) => (
+                  <button
+                    key={code}
+                    onClick={() => onChangeCurrency(code)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      activeCurrency === code
+                        ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs'
+                        : 'text-gray-600 hover:text-[#1B2A4A]'
+                    }`}
+                  >
+                    {CURRENCY_SYMBOLS[code]} {code}
+                  </button>
+                ))}
+              </div>
+
+              {onNavigateToAdmin && (
+                <button
+                  onClick={onNavigateToAdmin}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-[#1B2A4A] transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  <span>Admin Suite</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* MOBILE HEADER BAR */}
+          <div className="md:hidden flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
               <button
-                onClick={onNavigateToAdmin}
-                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-[#1B2A4A] transition-colors cursor-pointer"
+                onClick={onNavigateHome}
+                className="font-serif-title text-xl font-black text-[#1B2A4A] tracking-wider cursor-pointer whitespace-nowrap"
               >
-                <span>Admin Suite</span>
+                DSP <span className="text-[#D1B464]">ADIRE</span>
               </button>
-            )}
+              <span className="px-2 py-0.5 rounded-full bg-[#D1B464]/15 text-[#1B2A4A] text-[10px] font-bold border border-[#D1B464]/40 whitespace-nowrap">
+                Catalog
+              </span>
+            </div>
+
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl bg-gray-100 border border-gray-200 text-[#1B2A4A] hover:bg-gray-200 cursor-pointer transition-colors"
+              aria-label="Toggle Navigation Menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* MOBILE HAMBURGER MENU DROPDOWN */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden bg-white border-b border-gray-200 px-5 py-4 shadow-xl space-y-4 overflow-hidden"
+            >
+              {onNavigateHome && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onNavigateHome();
+                  }}
+                  className="w-full text-left text-xs font-bold text-[#1B2A4A] p-3 rounded-2xl bg-gray-100 hover:bg-gray-200 transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  Storefront Home
+                </button>
+              )}
+
+              {/* Currency Selector */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block px-1">
+                  Select Currency
+                </span>
+                <div className="grid grid-cols-4 gap-1.5 bg-gray-100 p-1.5 rounded-2xl border border-gray-200">
+                  {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((code) => (
+                    <button
+                      key={code}
+                      onClick={() => {
+                        onChangeCurrency(code);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer text-center ${
+                        activeCurrency === code ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs' : 'text-gray-600 hover:text-black'
+                      }`}
+                    >
+                      {CURRENCY_SYMBOLS[code]} {code}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {onNavigateToAdmin && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onNavigateToAdmin();
+                  }}
+                  className="w-full text-left text-xs font-bold text-[#1B2A4A] p-3 rounded-2xl bg-[#1B2A4A]/5 hover:bg-[#1B2A4A]/10 transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  Admin Suite
+                </button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* HERO BANNER SECTION */}

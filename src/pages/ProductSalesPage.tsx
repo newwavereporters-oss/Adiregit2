@@ -10,6 +10,7 @@ import {
   Truck,
   MessageSquare,
   X,
+  Menu,
   CreditCard,
   Building2,
   Tag,
@@ -81,8 +82,9 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [copiedBank, setCopiedBank] = useState<boolean>(false);
 
-  // Video Mute state
+  // Video Mute state & Mobile Menu state
   const [isMuted, setIsMuted] = useState<boolean>(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Load product & shipping locations
   useEffect(() => {
@@ -390,35 +392,128 @@ I will attach my payment receipt here.`;
       {/* HEADER / NAVIGATION BAR */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          <button
-            onClick={onNavigateBack}
-            className="flex items-center gap-2 text-xs font-bold text-[#1B2A4A] hover:text-[#D1B464] transition-colors cursor-pointer"
-          >
-            <ChevronRight className="w-4 h-4 rotate-180" />
-            <span>Back to Video Catalog</span>
-          </button>
+          {/* DESKTOP HEADER LAYOUT */}
+          <div className="hidden md:flex items-center justify-between w-full">
+            <button
+              onClick={onNavigateBack}
+              className="flex items-center gap-2 text-xs font-bold text-[#1B2A4A] hover:text-[#D1B464] transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <ChevronRight className="w-4 h-4 rotate-180" />
+              <span>Back to Products Catalog</span>
+            </button>
 
-          <div className="font-serif-title text-xl font-black text-[#1B2A4A] tracking-wider">
-            DSP <span className="text-[#D1B464]">ADIRE</span>
+            <button
+              onClick={onNavigateBack}
+              className="font-serif-title text-xl font-black text-[#1B2A4A] tracking-wider cursor-pointer hover:opacity-85 transition-opacity"
+            >
+              DSP <span className="text-[#D1B464]">ADIRE</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              {/* Currency Selector */}
+              <div className="flex items-center bg-gray-100 p-1 rounded-full border border-gray-200">
+                {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => onChangeCurrency(c)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      activeCurrency === c ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs' : 'text-gray-500 hover:text-black'
+                    }`}
+                  >
+                    {CURRENCY_SYMBOLS[c]} {c}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Currency Selector */}
-            <div className="flex items-center bg-gray-100 p-1 rounded-full border border-gray-200">
-              {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => onChangeCurrency(c)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                    activeCurrency === c ? 'bg-[#1B2A4A] text-[#D1B464]' : 'text-gray-500 hover:text-black'
-                  }`}
-                >
-                  {CURRENCY_SYMBOLS[c]} {c}
-                </button>
-              ))}
+          {/* MOBILE HEADER BAR */}
+          <div className="md:hidden flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onNavigateBack}
+                className="p-2 -ml-2 text-[#1B2A4A] hover:text-[#D1B464] cursor-pointer"
+                title="Back to Products Catalog"
+              >
+                <ChevronRight className="w-5 h-5 rotate-180" />
+              </button>
+              <button
+                onClick={onNavigateBack}
+                className="font-serif-title text-lg font-black text-[#1B2A4A] tracking-wider cursor-pointer"
+              >
+                DSP <span className="text-[#D1B464]">ADIRE</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-xl bg-gray-100 border border-gray-200 text-[#1B2A4A] hover:bg-gray-200 cursor-pointer transition-colors"
+                aria-label="Toggle Navigation Menu"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
             </div>
           </div>
         </div>
+
+        {/* MOBILE HAMBURGER MENU DROPDOWN */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden bg-white border-b border-gray-200 px-5 py-4 shadow-xl space-y-4 overflow-hidden"
+            >
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigateBack();
+                }}
+                className="w-full flex items-center gap-2 text-xs font-bold text-[#1B2A4A] p-3 rounded-2xl bg-[#1B2A4A]/5 hover:bg-[#1B2A4A]/10 transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <ChevronRight className="w-4 h-4 rotate-180 text-[#D1B464]" />
+                <span>Back to Products Catalog</span>
+              </button>
+
+              {/* Currency Selector */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block px-1">
+                  Select Currency
+                </span>
+                <div className="grid grid-cols-4 gap-1.5 bg-gray-100 p-1.5 rounded-2xl border border-gray-200">
+                  {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => {
+                        onChangeCurrency(c);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer text-center ${
+                        activeCurrency === c ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs' : 'text-gray-600 hover:text-black'
+                      }`}
+                    >
+                      {CURRENCY_SYMBOLS[c]} {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Jump to Checkout */}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  scrollToCheckout();
+                }}
+                className="w-full py-3 rounded-2xl bg-[#D1B464] text-[#1B2A4A] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer shadow-xs"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span>Jump to Order Form</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* A. HERO SECTION */}
@@ -847,14 +942,14 @@ I will attach my payment receipt here.`;
 
             {/* 6. BANK ACCOUNT DETAILS INSTRUCTIONS */}
             <div className="bg-[#1B2A4A] text-white p-6 rounded-2xl space-y-3 border border-[#D1B464]/30">
-              <div className="flex items-center justify-between border-b border-[#D1B464]/30 pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#D1B464]/30 pb-3 gap-2">
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-[#D1B464]" />
-                  <span className="font-bold text-xs uppercase tracking-wider text-[#D1B464]">
+                  <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#D1B464] shrink-0" />
+                  <span className="font-bold text-[11px] sm:text-xs uppercase tracking-wider text-[#D1B464]">
                     GTBank Official Account Details ({activeCurrency})
                   </span>
                 </div>
-                <span className="text-[10px] bg-white/10 px-2.5 py-0.5 rounded-full text-gray-300">
+                <span className="text-[10px] sm:text-xs bg-white/10 px-2.5 py-1 rounded-full text-gray-200 font-semibold tracking-wide w-fit shrink-0">
                   Verified DSP Academy LTD
                 </span>
               </div>
@@ -953,15 +1048,17 @@ I will attach my payment receipt here.`;
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-5 rounded-full bg-[#D1B464] text-[#1B2A4A] font-bold text-sm uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[54px]"
+              className="w-full py-3.5 sm:py-5 px-3 sm:px-6 rounded-full bg-[#D1B464] text-[#1B2A4A] font-bold text-xs sm:text-sm uppercase tracking-tight sm:tracking-wider hover:bg-[#c4a453] transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[50px] sm:min-h-[54px]"
             >
               {isSubmitting ? (
-                <span>Generating Order Reference...</span>
+                <span className="text-xs sm:text-sm">Generating Order Reference...</span>
               ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span>Complete My Order ({formatCurrencyValue(payNowAmount, activeCurrency)} Due Now)</span>
-                </>
+                <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-center leading-tight">
+                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  <span className="text-[11px] sm:text-sm font-bold tracking-tight sm:tracking-wider">
+                    Complete My Order ({formatCurrencyValue(payNowAmount, activeCurrency)} Due Now)
+                  </span>
+                </div>
               )}
             </button>
           </form>

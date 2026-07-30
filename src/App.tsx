@@ -197,7 +197,7 @@ export default function App() {
   // Catalog & Cart Modal State
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
+  const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('NGN');
 
   const [storefrontProducts, setStorefrontProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('dsp_admin_products');
@@ -472,10 +472,10 @@ export default function App() {
           <div className="hidden md:flex items-center gap-3">
             <button
               onClick={() => navigateTo('shop')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-xs cursor-pointer whitespace-nowrap"
             >
               <ShoppingBag className="w-4 h-4" />
-              Shop Fabrics
+              <span>Shop Fabrics</span>
             </button>
           </div>
 
@@ -526,7 +526,7 @@ export default function App() {
                       setMobileMenuOpen(false);
                       navigateTo('shop');
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider cursor-pointer whitespace-nowrap"
                   >
                     <ShoppingBag className="w-4 h-4" />
                     <span>Shop All Fabrics</span>
@@ -552,28 +552,28 @@ export default function App() {
               transition={{ duration: 0.8 }}
               className="lg:col-span-7 space-y-8 text-left"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1B2A4A]/10 border border-[#1B2A4A]/15 text-[#1B2A4A] text-xs font-semibold tracking-wider uppercase">
-                <Sparkles className="w-3.5 h-3.5 text-[#D1B464]" />
-                <span>Authentic Yoruba Textile Artistry</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#D1B464]" />
-                <span className="text-[#1B2A4A]/70">Direct From Abeokuta</span>
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-[#1B2A4A]/10 border border-[#1B2A4A]/15 text-[#1B2A4A] text-[10px] sm:text-xs font-semibold tracking-wide sm:tracking-wider uppercase max-w-full flex-wrap sm:flex-nowrap justify-center sm:justify-start text-center sm:text-left leading-tight">
+                <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#D1B464] shrink-0" />
+                <span className="whitespace-nowrap">Authentic Yoruba Textile Artistry</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D1B464] shrink-0" />
+                <span className="text-[#1B2A4A]/70 whitespace-nowrap">Direct From Abeokuta</span>
               </div>
 
-              <h1 className="font-serif-title text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#1A1A1A] leading-[1.12]">
+              <h1 className="font-serif-title text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#1A1A1A] leading-[1.12]">
                 Crafted Heritage.{' '}
                 <span className="gold-gradient-text block mt-1">
                   Hand-Dyed for the Modern Wardrobe.
                 </span>
               </h1>
 
-              <p className="text-lg sm:text-xl text-[#1A1A1A]/75 font-normal max-w-2xl leading-relaxed">
+              <p className="text-base sm:text-xl text-[#1A1A1A]/75 font-normal max-w-2xl leading-relaxed">
                 DSP Adire connects you directly to the authentic source of Yoruba textile artistry — eliminating middleman inflation while honoring centuries-old indigo resistance techniques.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-2">
                 <a
                   href="#fabric-guide"
-                  className="inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-[#1B2A4A] text-[#FAFAFA] font-medium text-sm tracking-wider uppercase shadow-md hover:bg-[#23375e] transition-all cursor-pointer group"
+                  className="inline-flex items-center justify-center gap-2 sm:gap-3 px-5 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#1B2A4A] text-[#FAFAFA] font-medium text-xs sm:text-sm tracking-wider uppercase shadow-md hover:bg-[#23375e] transition-all cursor-pointer group whitespace-nowrap"
                 >
                   <span>Explore Our Craft</span>
                   <ArrowRight className="w-4 h-4 text-[#D1B464] group-hover:translate-x-1 transition-transform" />
@@ -581,7 +581,7 @@ export default function App() {
 
                 <button
                   onClick={() => navigateTo('shop')}
-                  className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white border border-[#E5E7EB] text-[#1A1A1A] font-medium text-sm tracking-wider uppercase shadow-xs hover:border-[#D1B464] hover:bg-[#FAFAFA] transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 px-5 sm:px-8 py-3.5 sm:py-4 rounded-full bg-white border border-[#E5E7EB] text-[#1A1A1A] font-medium text-xs sm:text-sm tracking-wider uppercase shadow-xs hover:border-[#D1B464] hover:bg-[#FAFAFA] transition-all cursor-pointer whitespace-nowrap"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#1B2A4A]" />
                   <span>View Catalog ($ / ₦ / £ / €)</span>
