@@ -1,12 +1,14 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
-import { Lock, LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { AdminUser } from '../../types/admin';
 
 interface AdminBarProps {
   currentAdmin: AdminUser | null;
   onNavigateDashboard: () => void;
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
 export const AdminBar: React.FC<AdminBarProps> = ({
@@ -34,10 +36,10 @@ export const AdminBar: React.FC<AdminBarProps> = ({
           registeredAt: session.user.created_at || new Date().toISOString(),
         };
         setAdminSession(admin);
-      } else if (session === null) {
-        // Fallback to local storage if present
+      } else if (_event === 'SIGNED_OUT' || session === null) {
+        // If explicitly signed out, do NOT fallback to localStorage
         const savedSession = localStorage.getItem('dsp_admin_session');
-        if (savedSession) {
+        if (savedSession && _event !== 'SIGNED_OUT') {
           try {
             setAdminSession(JSON.parse(savedSession));
           } catch {
@@ -54,9 +56,41 @@ export const AdminBar: React.FC<AdminBarProps> = ({
     };
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      // 1. Immediately wipe local state
+      setAdminSession(null);
+
+      // 2. Clear all admin session storage keys
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('dsp_admin_session');
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+
+      // 3. Sign out from Supabase auth session
+      if (isSupabaseConfigured && supabase) {
+        await supabase.auth.signOut();
+      }
+
+      // 4. Trigger external onLogout callback if provided
+      if (onLogout) {
+        onLogout();
+      }
+
+      // 5. Hard refresh to reset all layout states and route cache
+      window.location.href = '/admin-signin';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Fallback redirect
+      window.location.href = '/admin-signin';
+    }
+  };
+
+  // If there is no active session, DO NOT render the AdminBar
   if (!adminSession) return null;
 
-  const initial = adminSession.fullName.charAt(0).toUpperCase() || 'A';
+  const initial = adminSession.fullName ? adminSession.fullName.charAt(0).toUpperCase() : 'A';
 
   return (
     <div className="fixed top-3 right-3 sm:right-6 z-50 animate-fade-in">
@@ -89,7 +123,7 @@ export const AdminBar: React.FC<AdminBarProps> = ({
           </button>
 
           <button
-            onClick={onLogout}
+            onClick={handleLogout}
             className="p-1.5 rounded-full text-gray-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Log Out Admin"
           >
