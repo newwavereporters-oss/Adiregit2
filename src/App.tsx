@@ -25,6 +25,8 @@ import { AdminAuth } from './components/Admin/AdminAuth';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { AdminBar } from './components/Admin/AdminBar';
 import { CheckoutModal } from './components/CheckoutModal';
+import { ShopPage } from './pages/ShopPage';
+import { ProductSalesPage } from './pages/ProductSalesPage';
 import { AdminUser, FabricCategory, CurrencyCode, CURRENCY_SYMBOLS, Product } from './types/admin';
 import { CORE_FABRICS, CORE_FABRICS as INITIAL_CORE_FABRICS, INITIAL_PRODUCTS } from './data/mockData';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
@@ -38,7 +40,7 @@ const COLLAGE_IMAGE_3 = 'https://images.unsplash.com/photo-1509631179647-0177331
 
 export default function App() {
   // Helper to resolve current view state from window location pathname or hash
-  const getViewFromUrl = (): 'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard' => {
+  const getViewFromUrl = (): 'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard' | 'shop' | 'product-sales' => {
     const path = window.location.pathname.toLowerCase();
     const hash = window.location.hash.toLowerCase();
 
@@ -56,31 +58,61 @@ export default function App() {
     if (path.includes('admin-register') || hash.includes('admin-register')) {
       return 'admin-register';
     }
+    if (path.includes('/shop') || hash.includes('/shop')) {
+      return 'shop';
+    }
+    if (path.includes('/products/') || path.includes('/product/')) {
+      return 'product-sales';
+    }
     return 'storefront';
+  };
+
+  const getSlugFromUrl = (): string => {
+    const path = window.location.pathname;
+    const match = path.match(/\/(?:products|product)\/([^/]+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+    return 'royal-olokun-agbada-ensemble';
   };
 
   // Navigation / View State
   const [currentView, setCurrentView] = useState<
-    'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard'
+    'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard' | 'shop' | 'product-sales'
   >(() => getViewFromUrl());
 
+  const [selectedProductSlug, setSelectedProductSlug] = useState<string>(() => getSlugFromUrl());
+
   // Programmatic URL Navigation Helper
-  const navigateTo = (view: 'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard') => {
+  const navigateTo = (
+    view: 'storefront' | 'admin-login' | 'admin-register' | 'admin-dashboard' | 'shop' | 'product-sales',
+    slug?: string
+  ) => {
     setCurrentView(view);
     let targetPath = '/';
     if (view === 'admin-dashboard') targetPath = '/admin-dashboard';
     else if (view === 'admin-login') targetPath = '/admin-signin';
     else if (view === 'admin-register') targetPath = '/admin-register';
+    else if (view === 'shop') targetPath = '/shop';
+    else if (view === 'product-sales') targetPath = `/products/${slug || 'royal-olokun-agbada-ensemble'}`;
+
+    if (slug) {
+      setSelectedProductSlug(slug);
+    }
 
     if (window.location.pathname !== targetPath) {
-      window.history.pushState({ view }, '', targetPath);
+      window.history.pushState({ view, slug }, '', targetPath);
     }
   };
 
   // Sync URL Path changes on Back/Forward browser navigation
   useEffect(() => {
     const handleLocationChange = () => {
-      setCurrentView(getViewFromUrl());
+      const v = getViewFromUrl();
+      setCurrentView(v);
+      if (v === 'product-sales') {
+        setSelectedProductSlug(getSlugFromUrl());
+      }
     };
 
     window.addEventListener('popstate', handleLocationChange);
@@ -360,6 +392,31 @@ export default function App() {
     );
   }
 
+  // RENDER VIDEO CATALOG SHOP PAGE VIEW (/shop)
+  if (currentView === 'shop') {
+    return (
+      <ShopPage
+        onNavigateToProduct={(slug) => navigateTo('product-sales', slug)}
+        activeCurrency={activeCurrency}
+        onChangeCurrency={(c) => setActiveCurrency(c)}
+        onNavigateHome={() => navigateTo('storefront')}
+        onNavigateToAdmin={() => navigateTo('admin-dashboard')}
+      />
+    );
+  }
+
+  // RENDER DYNAMIC PRODUCT SALES PAGE VIEW (/products/[slug])
+  if (currentView === 'product-sales') {
+    return (
+      <ProductSalesPage
+        slug={selectedProductSlug}
+        activeCurrency={activeCurrency}
+        onChangeCurrency={(c) => setActiveCurrency(c)}
+        onNavigateBack={() => navigateTo('shop')}
+      />
+    );
+  }
+
   // RENDER STOREFRONT HOMEPAGE VIEW
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1A1A1A] font-sans adire-watermark-bg relative overflow-x-hidden selection:bg-[#D1B464]/30">
@@ -394,9 +451,12 @@ export default function App() {
 
           {/* Center Links (Desktop) */}
           <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-[#1A1A1A]/80">
-            <a href="#artistry" className="hover:text-[#1B2A4A] hover:font-semibold transition-all relative py-1">
-              The Artistry
-            </a>
+            <button
+              onClick={() => navigateTo('shop')}
+              className="hover:text-[#1B2A4A] text-[#1B2A4A] font-bold transition-all relative py-1 cursor-pointer"
+            >
+              Products
+            </button>
             <a href="#promise" className="hover:text-[#1B2A4A] hover:font-semibold transition-all relative py-1">
               Direct-to-Factory
             </a>
@@ -411,7 +471,7 @@ export default function App() {
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
             <button
-              onClick={() => setIsCatalogOpen(true)}
+              onClick={() => navigateTo('shop')}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-xs cursor-pointer"
             >
               <ShoppingBag className="w-4 h-4" />
@@ -441,9 +501,15 @@ export default function App() {
               className="md:hidden bg-[#FAFAFA] border-b border-gray-200 px-6 py-6 shadow-xl"
             >
               <div className="flex flex-col space-y-4">
-                <a href="#artistry" onClick={() => setMobileMenuOpen(false)} className="text-base font-serif-title font-medium text-[#1A1A1A] py-1 border-b border-gray-100">
-                  The Artistry
-                </a>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigateTo('shop');
+                  }}
+                  className="text-left text-base font-serif-title font-bold text-[#1B2A4A] py-1 border-b border-gray-100 cursor-pointer"
+                >
+                  Products
+                </button>
                 <a href="#promise" onClick={() => setMobileMenuOpen(false)} className="text-base font-serif-title font-medium text-[#1A1A1A] py-1 border-b border-gray-100">
                   Direct-to-Factory Promise
                 </a>
@@ -458,9 +524,9 @@ export default function App() {
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
-                      setIsCatalogOpen(true);
+                      navigateTo('shop');
                     }}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider cursor-pointer"
                   >
                     <ShoppingBag className="w-4 h-4" />
                     <span>Shop All Fabrics</span>
@@ -514,7 +580,7 @@ export default function App() {
                 </a>
 
                 <button
-                  onClick={() => setIsCatalogOpen(true)}
+                  onClick={() => navigateTo('shop')}
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white border border-[#E5E7EB] text-[#1A1A1A] font-medium text-sm tracking-wider uppercase shadow-xs hover:border-[#D1B464] hover:bg-[#FAFAFA] transition-all cursor-pointer"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#1B2A4A]" />
