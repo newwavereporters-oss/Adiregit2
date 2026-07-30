@@ -214,21 +214,6 @@ export default function App() {
 
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Admin Portal Toggle Button */}
-            <button
-              onClick={() => {
-                if (currentAdmin) {
-                  setCurrentView('admin-dashboard');
-                } else {
-                  setCurrentView('admin-login');
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1B2A4A]/10 text-[#1B2A4A] hover:bg-[#1B2A4A] hover:text-[#FAFAFA] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border border-[#1B2A4A]/20"
-            >
-              <Lock className="w-3.5 h-3.5 text-[#D1B464]" />
-              <span>Admin Portal</span>
-            </button>
-
             <button
               onClick={() => setIsCatalogOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-xs cursor-pointer"
@@ -240,14 +225,6 @@ export default function App() {
 
           {/* Mobile Hamburger Toggle */}
           <div className="md:hidden flex items-center gap-2">
-            <button
-              onClick={() => setCurrentView(currentAdmin ? 'admin-dashboard' : 'admin-login')}
-              className="p-2 rounded-full bg-[#1B2A4A]/10 text-[#1B2A4A]"
-              title="Admin Portal"
-            >
-              <Lock className="w-4 h-4 text-[#D1B464]" />
-            </button>
-
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2.5 rounded-lg text-[#1A1A1A] hover:bg-gray-100 transition-colors"
@@ -281,18 +258,7 @@ export default function App() {
                   Become a DSP Insider
                 </a>
 
-                <div className="pt-2 space-y-2">
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setCurrentView(currentAdmin ? 'admin-dashboard' : 'admin-login');
-                    }}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#1B2A4A] text-white font-semibold text-xs uppercase tracking-wider"
-                  >
-                    <Lock className="w-4 h-4 text-[#D1B464]" />
-                    <span>Go to Admin Portal</span>
-                  </button>
-
+                <div className="pt-2">
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
@@ -784,16 +750,17 @@ export default function App() {
             <span className="font-serif-title font-bold text-lg text-[#1B2A4A]">DSP ADIRE</span>
           </div>
 
-          <div className="text-xs text-gray-500">
-            &copy; {new Date().getFullYear()} DSP Adire Textile Guild. Abeokuta, Ogun State, Nigeria.
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-xs text-gray-400">
+            <span>&copy; {new Date().getFullYear()} DSP Adire Textile Guild. Abeokuta, Ogun State, Nigeria.</span>
+            <button
+              onClick={() => setCurrentView(currentAdmin ? 'admin-dashboard' : 'admin-login')}
+              className="inline-flex items-center gap-1 text-[11px] text-gray-400/80 hover:text-gray-600 transition-colors cursor-pointer opacity-60 hover:opacity-100"
+              title="Staff Access"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Staff Access</span>
+            </button>
           </div>
-
-          <button
-            onClick={() => setCurrentView(currentAdmin ? 'admin-dashboard' : 'admin-login')}
-            className="text-xs font-bold text-[#1B2A4A] hover:text-[#D1B464] underline underline-offset-4 cursor-pointer"
-          >
-            {currentAdmin ? 'Go to Admin Dashboard' : 'Admin Management Portal Sign-In'}
-          </button>
         </div>
       </footer>
     </div>
