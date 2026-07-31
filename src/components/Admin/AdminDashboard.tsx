@@ -650,17 +650,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       in_stock: isStockAvailable,
       stock_quantity: stockQty,
       allow_coupons: true,
-      prices: {
-        ngn: cleanPriceNgn,
-        usd: finalPriceUsd,
-        gbp: finalPriceGbp,
-        eur: finalPriceEur,
-      },
-      media: {
-        primaryUrl: productData.media?.primaryUrl || '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
-        galleryUrls: galleryArr,
-        videoUrl: productData.media?.videoUrl,
-      },
       updated_at: new Date().toISOString(),
     };
 
