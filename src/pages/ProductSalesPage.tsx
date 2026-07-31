@@ -97,42 +97,54 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   // Load product & shipping locations directly from Supabase
   useEffect(() => {
     let isMounted = true;
-    async function loadData() {
-      // 1. Load Product from Supabase
+
+    async function fetchProductData() {
+      // 1. Fetch Product directly from Supabase where slug equals passed slug prop
       if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('products')
           .select('*')
-          .or(`slug.eq.${slug},id.eq.${slug}`)
+          .eq('slug', slug)
           .maybeSingle();
+
+        // Fallback check by UUID if slug didn't match and slug is a valid UUID
+        const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slug || '');
+        if (!data && !error && isUuid) {
+          const idRes = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', slug)
+            .maybeSingle();
+          data = idRes.data;
+          error = idRes.error;
+        }
 
         if (isMounted) {
           if (!error && data) {
             setProduct(mapSupabaseProductToProduct(data));
           } else {
-            // Check fallback if needed
-            const found = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
-            setProduct(found || null);
+            const foundFallback = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
+            setProduct(foundFallback || null);
           }
         }
       } else {
         if (isMounted) {
-          const found = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
-          setProduct(found || null);
+          const foundFallback = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
+          setProduct(foundFallback || null);
         }
       }
 
-      // 2. Load Shipping Locations
+      // 2. Fetch Shipping Locations
       try {
         if (isSupabaseConfigured && supabase) {
-          const { data } = await supabase
+          const { data: shippingData } = await supabase
             .from('shipping_locations')
             .select('*')
             .eq('is_active', true)
             .order('created_at', { ascending: false });
 
-          if (data && isMounted) {
-            const mapped = data.map(mapSupabaseShippingLocation);
+          if (shippingData && isMounted) {
+            const mapped = shippingData.map(mapSupabaseShippingLocation);
             setShippingLocations(mapped);
             if (mapped.length > 0) {
               setSelectedShippingId((prev) => (mapped.some((m) => m.id === prev) ? prev : mapped[0].id));
@@ -140,13 +152,15 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           }
         }
       } catch (e) {
-        // ignore
+        // ignore errors
       }
 
-      if (isMounted) setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
 
-    loadData();
+    fetchProductData();
 
     let channel: any = null;
     if (isSupabaseConfigured && supabase) {
@@ -181,7 +195,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
     };
   }, [slug]);
 
-  if (loading || !product) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6">
         <div className="text-center space-y-4">
@@ -189,6 +203,25 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           <p className="text-xs font-bold text-[#1B2A4A] uppercase tracking-wider">
             Retrieving Luxury Yoruba Textile Record...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-sm border border-gray-100 space-y-4">
+          <h2 className="text-xl font-serif text-[#1B2A4A] font-bold">Textile Record Not Found</h2>
+          <p className="text-xs text-gray-500">
+            The requested textile product could not be located in our catalog.
+          </p>
+          <button
+            onClick={onNavigateBack}
+            className="w-full py-3 bg-[#1B2A4A] text-white text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-[#25375c] transition-colors"
+          >
+            Return to Store
+          </button>
         </div>
       </div>
     );
