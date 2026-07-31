@@ -1,5 +1,5 @@
-import Link from 'next/link';
-import { PackageCheck, ShieldCheck } from 'lucide-react';
+import React from 'react';
+import { PackageCheck } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -19,28 +19,28 @@ export default function Footer() {
           <div className="space-y-2">
             <h4 className="text-sm font-bold uppercase tracking-widest text-[#D1B464]">Catalog</h4>
             <ul className="space-y-1.5 text-xs text-gray-300">
-              <li><Link href="/shop" className="hover:text-[#D1B464] transition-colors">All Products</Link></li>
-              <li><Link href="/shop?category=silk" className="hover:text-[#D1B464] transition-colors">Adire Silk</Link></li>
-              <li><Link href="/shop?category=cotton" className="hover:text-[#D1B464] transition-colors">Adire Cotton</Link></li>
+              <li><a href="/shop" className="hover:text-[#D1B464] transition-colors">All Products</a></li>
+              <li><a href="/shop?category=silk" className="hover:text-[#D1B464] transition-colors">Adire Silk</a></li>
+              <li><a href="/shop?category=cotton" className="hover:text-[#D1B464] transition-colors">Adire Cotton</a></li>
             </ul>
           </div>
 
-          {/* ORDER SUPPORT & TRACKING (REPLACED HERE) */}
+          {/* ORDER SUPPORT & TRACKING */}
           <div className="space-y-2">
             <h4 className="text-sm font-bold uppercase tracking-widest text-[#D1B464]">Customer Service</h4>
             <ul className="space-y-2 text-xs text-gray-300">
               {/* Clean, highlighted Track Order Link */}
               <li>
-                <Link 
+                <a 
                   href="/track-order" 
                   className="inline-flex items-center gap-1.5 text-[#D1B464] hover:underline font-semibold transition-colors"
                 >
                   <PackageCheck className="w-3.5 h-3.5" />
                   <span>Track Your Order</span>
-                </Link>
+                </a>
               </li>
-              <li><Link href="/shipping-policy" className="hover:text-[#D1B464] transition-colors">Delivery & Rates</Link></li>
-              <li><Link href="/contact" className="hover:text-[#D1B464] transition-colors">Contact Support</Link></li>
+              <li><a href="/shipping-policy" className="hover:text-[#D1B464] transition-colors">Delivery & Rates</a></li>
+              <li><a href="/contact" className="hover:text-[#D1B464] transition-colors">Contact Support</a></li>
             </ul>
           </div>
 

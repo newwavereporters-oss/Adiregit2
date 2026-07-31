@@ -22,6 +22,9 @@ import {
   FileText,
 } from 'lucide-react';
 import { FormattedProductDescription } from '../components/FormattedProductDescription';
+import { OrderStatusModal } from '../components/OrderStatusModal';
+import { CurrencyDropdown } from '../components/CurrencyDropdown';
+import { FloatingTrackOrderCard } from '../components/FloatingTrackOrderCard';
 import {
   Product,
   CurrencyCode,
@@ -84,9 +87,10 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [copiedBank, setCopiedBank] = useState<boolean>(false);
 
-  // Video Mute state & Mobile Menu state
+  // Video Mute state & Mobile Menu state & Tracker state
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [isTrackerOpen, setIsTrackerOpen] = useState<boolean>(false);
 
   // Load product & shipping locations
   useEffect(() => {
@@ -412,20 +416,11 @@ I will attach my payment receipt here.`;
             </button>
 
             <div className="flex items-center gap-2">
-              {/* Currency Selector */}
-              <div className="flex items-center bg-gray-100 p-1 rounded-full border border-gray-200">
-                {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => onChangeCurrency(c)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      activeCurrency === c ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs' : 'text-gray-500 hover:text-black'
-                    }`}
-                  >
-                    {CURRENCY_SYMBOLS[c]} {c}
-                  </button>
-                ))}
-              </div>
+              {/* Desktop Currency Dropdown */}
+              <CurrencyDropdown
+                activeCurrency={activeCurrency}
+                onChangeCurrency={onChangeCurrency}
+              />
             </div>
           </div>
 
@@ -1163,6 +1158,16 @@ I will attach my payment receipt here.`;
           </div>
         )}
       </AnimatePresence>
+
+      {/* FLOATING NEAT SIDE TRACK ORDER CARD */}
+      <FloatingTrackOrderCard onClick={() => setIsTrackerOpen(true)} />
+
+      {/* REAL-TIME ORDER TRACKER MODAL */}
+      <OrderStatusModal
+        isOpen={isTrackerOpen}
+        onClose={() => setIsTrackerOpen(false)}
+        onNavigateToShop={onNavigateBack}
+      />
     </div>
   );
 };

@@ -39,6 +39,8 @@ import {
 } from 'lucide-react';
 import {
   Product,
+  FabricCategory,
+  ProductStatus,
   Lead,
   AdminUser,
   CurrencyCode,
@@ -538,26 +540,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const finalPriceGbp = productData.prices?.gbp || computedGbp;
     const finalPriceEur = productData.prices?.eur || computedEur;
 
-    // Slug generation
+    // 2. Strict Enum Normalization (Ensures Postgres enum types match exactly)
+    const normalizeCategory = (cat?: string): FabricCategory => {
+      if (!cat) return 'adire_cotton';
+      const clean = cat.toLowerCase().trim();
+      if (clean.includes('tshirt') || clean.includes('t-shirt')) return 'adire_tshirts';
+      if (clean.includes('crepe')) return 'adire_crepe';
+      if (clean.includes('chiffon')) return 'adire_chiffon';
+      if (clean.includes('rayon')) return 'adire_rayon';
+      if (clean.includes('viscose')) return 'adire_viscose';
+      if (clean.includes('ibile')) return 'ibile';
+      return 'adire_cotton';
+    };
+
+    const normalizeStatus = (st?: string): ProductStatus => {
+      if (!st) return 'active';
+      const clean = st.toLowerCase().trim();
+      if (clean.includes('draft')) return 'draft';
+      if (clean.includes('archive')) return 'archived';
+      return 'active';
+    };
+
+    const validatedCategory = normalizeCategory(productData.category);
+    const validatedStatus = normalizeStatus(productData.status);
+
+    // 3. Slug generation & Unique Constraint Safe Safeguards
     const rawTitle = productData.title?.trim() || 'Untitled Fabric';
-    const computedSlug = (productData.slug || rawTitle)
+    let computedSlug = (productData.slug || rawTitle)
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
 
+    if (!computedSlug) {
+      computedSlug = `adire-${Date.now()}`;
+    }
+
     const galleryArr = productData.media?.galleryUrls || [];
     const stockQty = Number(productData.stockQuantity) || 10;
     const isStockAvailable = stockQty > 0 ? (productData.inStock ?? true) : false;
 
-    // Construct Supabase Insert/Update Payload according to exact schema specification
+    // Construct Supabase Payload with exact matching column names and enum types
     const payload = {
       title: rawTitle,
       slug: computedSlug,
       description: productData.description || '',
-      fabric_category: productData.category || 'adire_cotton',
-      category: productData.category || 'adire_cotton',
-      status: productData.status || 'active',
+      fabric_category: validatedCategory,
+      category: validatedCategory,
+      status: validatedStatus,
       price_ngn: cleanPriceNgn,
       price_usd: finalPriceUsd,
       price_gbp: finalPriceGbp,
@@ -588,20 +618,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (productToEdit) {
       // UPDATE EXISTING PRODUCT
       const updatedProducts = products.map((p) =>
-        p.id === productToEdit.id ? ({ ...p, ...productData } as Product) : p
+        p.id === productToEdit.id
+          ? ({
+              ...p,
+              ...productData,
+              category: validatedCategory,
+              status: validatedStatus,
+              slug: computedSlug,
+            } as Product)
+          : p
       );
       setProducts(updatedProducts);
 
       if (isSupabaseConfigured && supabase) {
-        const { error } = await supabase
+        let { data, error } = await supabase
           .from('products')
           .update(payload)
-          .eq('id', productToEdit.id);
+          .eq('id', productToEdit.id)
+          .select();
+
+        // If unique slug constraint violation occurs during update
+        if (
+          error &&
+          (error.code === '23505' ||
+            error.message?.toLowerCase().includes('slug') ||
+            error.message?.toLowerCase().includes('unique'))
+        ) {
+          const uniqueSlug = `${computedSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+          payload.slug = uniqueSlug;
+          const retryRes = await supabase
+            .from('products')
+            .update(payload)
+            .eq('id', productToEdit.id)
+            .select();
+          data = retryRes.data;
+          error = retryRes.error;
+        }
 
         if (error) {
-          console.error('Supabase Error updating product:', error.message);
+          console.error('Supabase Error updating product:', error);
           showToast(`Error: ${error.message}`);
-          alert(`Failed to update product in Supabase: ${error.message}`);
+          alert(`Failed to save to Supabase: ${error.message}`);
         } else {
           showToast(`Product "${rawTitle}" updated in Supabase!`);
           const { data: refreshed } = await supabase.from('products').select('*');
@@ -620,8 +677,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         title: rawTitle,
         slug: computedSlug,
         description: productData.description || '',
-        category: productData.category || 'adire_cotton',
-        status: productData.status || 'active',
+        category: validatedCategory,
+        status: validatedStatus,
         prices: {
           ngn: cleanPriceNgn,
           usd: finalPriceUsd,
@@ -648,14 +705,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           ...payload,
         };
 
-        const { data, error } = await supabase.from('products').insert([createPayload]);
+        let { data, error } = await supabase
+          .from('products')
+          .insert([createPayload])
+          .select();
+
+        // Handle unique slug constraint duplicate gracefully with retry
+        if (
+          error &&
+          (error.code === '23505' ||
+            error.message?.toLowerCase().includes('slug') ||
+            error.message?.toLowerCase().includes('unique'))
+        ) {
+          const uniqueSlug = `${computedSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+          console.warn(`Duplicate slug detected. Retrying insert with unique slug: ${uniqueSlug}`);
+          createPayload.slug = uniqueSlug;
+          const retryRes = await supabase
+            .from('products')
+            .insert([createPayload])
+            .select();
+          data = retryRes.data;
+          error = retryRes.error;
+        }
 
         if (error) {
-          console.error('Supabase Error adding product:', error.message);
+          console.error('Supabase Insert Error:', error);
           showToast(`Failed to save: ${error.message}`);
-          alert(`Failed to save product to Supabase: ${error.message}`);
+          alert(`Failed to save to Supabase: ${error.message}`);
         } else {
-          showToast(`Product "${rawTitle}" saved successfully to Supabase!`);
+          console.log('Saved successfully to Supabase:', data);
+          showToast(`Product "${rawTitle}" saved permanently to Supabase!`);
           // Refresh list from Supabase
           const { data: refreshed } = await supabase.from('products').select('*');
           if (refreshed && refreshed.length > 0) {

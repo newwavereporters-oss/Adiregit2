@@ -21,6 +21,8 @@ import { INITIAL_PRODUCTS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { convertFromNGN, formatCurrencyValue } from '../utils/currencyAndBank';
 import { OrderStatusModal } from '../components/OrderStatusModal';
+import { CurrencyDropdown } from '../components/CurrencyDropdown';
+import { FloatingTrackOrderCard } from '../components/FloatingTrackOrderCard';
 
 interface ShopPageProps {
   onNavigateToProduct: (slug: string) => void;
@@ -164,31 +166,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Currency Selector Switcher */}
-              <div className="flex items-center bg-gray-100 p-1 rounded-full border border-gray-200">
-                {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((code) => (
-                  <button
-                    key={code}
-                    onClick={() => onChangeCurrency(code)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      activeCurrency === code
-                        ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs'
-                        : 'text-gray-600 hover:text-[#1B2A4A]'
-                    }`}
-                  >
-                    {CURRENCY_SYMBOLS[code]} {code}
-                  </button>
-                ))}
-              </div>
-
-              {/* Track Order Button */}
-              <button
-                onClick={() => setIsTrackerOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#1B2A4A]/20 hover:border-[#1B2A4A] text-[#1B2A4A] text-xs font-bold transition-all cursor-pointer whitespace-nowrap bg-gray-50"
-              >
-                <Package className="w-3.5 h-3.5 text-[#D1B464]" />
-                <span>Track Order</span>
-              </button>
+              {/* Desktop Currency Dropdown */}
+              <CurrencyDropdown
+                activeCurrency={activeCurrency}
+                onChangeCurrency={onChangeCurrency}
+              />
 
               {onNavigateToAdmin && (
                 <button
@@ -520,6 +502,9 @@ export const ShopPage: React.FC<ShopPageProps> = ({
           </div>
         </div>
       </footer>
+
+      {/* FLOATING NEAT SIDE TRACK ORDER CARD */}
+      <FloatingTrackOrderCard onClick={() => setIsTrackerOpen(true)} />
 
       {/* REAL-TIME ORDER TRACKER MODAL */}
       <OrderStatusModal

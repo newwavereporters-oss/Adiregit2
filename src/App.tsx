@@ -33,6 +33,8 @@ import { AdminUser, FabricCategory, CurrencyCode, CURRENCY_SYMBOLS, Product } fr
 import { CORE_FABRICS, CORE_FABRICS as INITIAL_CORE_FABRICS, INITIAL_PRODUCTS } from './data/mockData';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { detectUserCurrency, saveUserCurrencyPreference } from './utils/geoIp';
+import { CurrencyDropdown } from './components/CurrencyDropdown';
+import { FloatingTrackOrderCard } from './components/FloatingTrackOrderCard';
 
 // IMAGE ASSETS
 const HERO_IMAGE = '/src/assets/images/adire_hero_fashion_1785421009712.jpg';
@@ -480,16 +482,6 @@ export default function App() {
             >
               Products
             </button>
-            <button
-              onClick={() => {
-                setOrderStatusInitialId('');
-                setIsOrderStatusOpen(true);
-              }}
-              className="hover:text-[#1B2A4A] text-[#1B2A4A]/80 font-bold transition-all relative py-1 cursor-pointer flex items-center gap-1.5"
-            >
-              <Package className="w-4 h-4 text-[#D1B464]" />
-              <span>Track Order</span>
-            </button>
             <a href="#promise" className="hover:text-[#1B2A4A] hover:font-semibold transition-all relative py-1">
               Direct-to-Factory
             </a>
@@ -503,37 +495,15 @@ export default function App() {
 
           {/* Right Action Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Currency Selector */}
-            <div className="flex items-center bg-gray-100 p-1 rounded-full border border-gray-200">
-              {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((code) => (
-                <button
-                  key={code}
-                  onClick={() => handleCurrencyChange(code)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap ${
-                    activeCurrency === code
-                      ? 'bg-[#1B2A4A] text-[#D1B464] shadow-xs'
-                      : 'text-gray-600 hover:text-[#1B2A4A]'
-                  }`}
-                >
-                  {CURRENCY_SYMBOLS[code]} {code}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => {
-                setOrderStatusInitialId('');
-                setIsOrderStatusOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#1B2A4A]/20 hover:border-[#1B2A4A] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap bg-white/80"
-            >
-              <Package className="w-3.5 h-3.5 text-[#D1B464]" />
-              <span>Track Order</span>
-            </button>
+            {/* Desktop Currency Dropdown */}
+            <CurrencyDropdown
+              activeCurrency={activeCurrency}
+              onChangeCurrency={handleCurrencyChange}
+            />
 
             <button
               onClick={() => navigateTo('shop')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#D1B464] text-[#1B2A4A] font-semibold text-xs uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-xs cursor-pointer whitespace-nowrap"
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[#D1B464] text-[#1B2A4A] font-bold text-xs uppercase tracking-wider hover:bg-[#c4a453] transition-all shadow-xs cursor-pointer whitespace-nowrap"
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Shop Fabrics</span>
@@ -991,43 +961,43 @@ export default function App() {
       {/* -------------------------------------------------------------
           5. LEAD CAPTURE SECTION (The Gateway)
       ------------------------------------------------------------- */}
-      <section id="insider" className="py-20 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#1B2A4A] via-[#121E36] to-[#1B2A4A] border-2 border-[#D1B464]/40 p-8 sm:p-12 lg:p-16 text-white shadow-2xl">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
+      <section id="insider" className="py-12 sm:py-20 relative px-2.5 sm:px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-gradient-to-br from-[#1B2A4A] via-[#121E36] to-[#1B2A4A] border-2 border-[#D1B464]/40 p-4 min-[375px]:p-6 sm:p-12 lg:p-16 text-white shadow-2xl">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-[375px]:gap-6 lg:gap-10 items-center relative z-10">
               
-              <div className="lg:col-span-7 space-y-6">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#D1B464] text-xs font-bold uppercase tracking-widest border border-white/10">
-                  <Sparkles className="w-3.5 h-3.5" />
+              <div className="lg:col-span-7 space-y-3.5 min-[375px]:space-y-5 sm:space-y-6">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-[#D1B464] text-[10px] min-[375px]:text-xs font-bold uppercase tracking-widest border border-white/10">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
                   <span>The DSP Inner Circle</span>
                 </div>
 
-                <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
+                <h2 className="font-serif-title text-xl min-[375px]:text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight tracking-wide">
                   BECOME A DSP INSIDER
                 </h2>
 
-                <p className="text-sm sm:text-base text-gray-300 max-w-xl leading-relaxed">
+                <p className="text-xs min-[375px]:text-sm sm:text-base text-gray-300 max-w-xl leading-relaxed">
                   Join our private client list for early access to limited Abeokuta releases, our complimentary <strong className="text-white">Adire Style & Drapery Guide PDF</strong>, and 15% off your first fabric order.
                 </p>
               </div>
 
-              <div className="lg:col-span-5 bg-white text-[#1A1A1A] p-6 sm:p-8 rounded-2xl shadow-xl">
+              <div className="lg:col-span-5 bg-white text-[#1A1A1A] p-3.5 min-[375px]:p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-xl">
                 {isLeadSubmitted ? (
-                  <div className="text-center py-8 space-y-4">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto">
-                      <CheckCircle2 className="w-6 h-6" />
+                  <div className="text-center py-6 sm:py-8 space-y-3 sm:space-y-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <h3 className="font-serif-title text-2xl font-bold text-[#1B2A4A]">
+                    <h3 className="font-serif-title text-xl sm:text-2xl font-bold text-[#1B2A4A]">
                       Welcome to the Inner Circle!
                     </h3>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-gray-600 leading-relaxed">
                       Your 15% discount code <strong className="text-[#1B2A4A] font-mono">DSPINSIDER15</strong> has been generated and logged into our system.
                     </p>
                   </div>
                 ) : (
-                  <form onSubmit={handleLeadSubmit} className="space-y-4">
+                  <form onSubmit={handleLeadSubmit} className="space-y-3.5 sm:space-y-4">
                     <div>
-                      <label className="block text-xs font-bold uppercase text-[#1B2A4A] mb-1">
+                      <label className="block text-[11px] min-[375px]:text-xs font-bold uppercase text-[#1B2A4A] mb-1">
                         Full Name *
                       </label>
                       <input
@@ -1036,12 +1006,12 @@ export default function App() {
                         value={leadName}
                         onChange={(e) => setLeadName(e.target.value)}
                         placeholder="e.g. Folake Adebayo"
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#FAFAFA] border border-[#E5E7EB] text-sm focus:outline-none focus:border-[#D1B464]"
+                        className="w-full px-3.5 py-3 rounded-xl bg-[#FAFAFA] border border-[#E5E7EB] text-base sm:text-sm focus:outline-none focus:border-[#D1B464] placeholder:text-gray-400"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase text-[#1B2A4A] mb-1">
+                      <label className="block text-[11px] min-[375px]:text-xs font-bold uppercase text-[#1B2A4A] mb-1">
                         Email Address or WhatsApp Number *
                       </label>
                       <input
@@ -1050,19 +1020,19 @@ export default function App() {
                         value={leadContact}
                         onChange={(e) => setLeadContact(e.target.value)}
                         placeholder="email@domain.com or +234..."
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#FAFAFA] border border-[#E5E7EB] text-sm focus:outline-none focus:border-[#D1B464]"
+                        className="w-full px-3.5 py-3 rounded-xl bg-[#FAFAFA] border border-[#E5E7EB] text-base sm:text-sm focus:outline-none focus:border-[#D1B464] placeholder:text-gray-400"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={isSubmittingLead}
-                      className="w-full py-3.5 px-6 rounded-full bg-[#1B2A4A] text-[#FAFAFA] font-semibold text-xs uppercase tracking-wider hover:bg-[#23375e] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="w-full py-3.5 px-4 rounded-xl sm:rounded-full bg-[#1B2A4A] text-[#FAFAFA] font-bold text-xs min-[375px]:text-sm uppercase tracking-wider hover:bg-[#23375e] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 min-h-[48px]"
                     >
                       {isSubmittingLead ? (
                         <div className="w-5 h-5 border-2 border-[#D1B464] border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <span>Unlock My Guide & 15% Discount</span>
+                        <span className="text-center leading-snug">Unlock My Guide & 15% Discount</span>
                       )}
                     </button>
                   </form>
@@ -1292,6 +1262,16 @@ export default function App() {
         cart={cart}
         activeCurrency={activeCurrency}
         onClearCart={() => setCart([])}
+      />
+
+      {/* -------------------------------------------------------------
+          FLOATING NEAT SIDE TRACK ORDER CARD
+      ------------------------------------------------------------- */}
+      <FloatingTrackOrderCard
+        onClick={() => {
+          setOrderStatusInitialId('');
+          setIsOrderStatusOpen(true);
+        }}
       />
 
       {/* -------------------------------------------------------------
