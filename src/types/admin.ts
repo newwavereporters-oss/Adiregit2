@@ -91,12 +91,21 @@ export interface Order {
 
 export interface ShippingLocation {
   id: string;
-  name: string;
-  country: string;
-  timeframe: string;
-  rates: MultiCurrencyPrice;
-  isActive: boolean;
-  createdAt?: string;
+  state_region: string;
+  rate_ngn: number;
+  rate_usd: number;
+  rate_gbp: number;
+  rate_eur: number;
+  delivery_timeframe: string;
+  is_active: boolean;
+  created_at?: string;
+
+  // Optional backward compatibility properties
+  name?: string;
+  country?: string;
+  timeframe?: string;
+  rates?: MultiCurrencyPrice;
+  isActive?: boolean;
 }
 
 export interface Coupon {

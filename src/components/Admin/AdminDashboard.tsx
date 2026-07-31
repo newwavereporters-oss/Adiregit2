@@ -65,6 +65,7 @@ import {
 import { ProductModal } from './ProductModal';
 import { supabase, isSupabaseConfigured, testSupabaseConnection } from '../../lib/supabase';
 import { mapSupabaseProductToProduct } from '../../utils/productMapper';
+import { mapSupabaseShippingLocation } from '../../utils/shippingMapper';
 
 interface AdminDashboardProps {
   currentUser: AdminUser;
@@ -95,7 +96,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [orders, setOrders] = useState<Order[]>([]);
 
-  const [shippingLocations, setShippingLocations] = useState<ShippingLocation[]>(INITIAL_SHIPPING_LOCATIONS);
+  const [shippingLocations, setShippingLocations] = useState<ShippingLocation[]>([]);
 
   const [coupons, setCoupons] = useState<Coupon[]>(INITIAL_COUPONS);
 
@@ -109,11 +110,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
   const [shippingToEdit, setShippingToEdit] = useState<ShippingLocation | null>(null);
   const [shippingForm, setShippingForm] = useState({
-    name: '',
-    country: 'Nigeria',
-    timeframe: '2-4 Business Days',
-    rates: { ngn: 5000, usd: 10, gbp: 8, eur: 9 } as MultiCurrencyPrice,
-    isActive: true,
+    state_region: '',
+    rate_ngn: 5000,
+    delivery_timeframe: '24-48 Hours',
+    is_active: true,
   });
 
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
@@ -247,18 +247,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           setOrders(formatted);
         }
         // Shipping Locations
-        const { data: sData } = await supabase.from('shipping_locations').select('*');
-        if (sData && sData.length > 0) {
-          const formatted: ShippingLocation[] = sData.map((loc) => ({
-            id: loc.id,
-            name: loc.name,
-            country: loc.country,
-            timeframe: loc.timeframe,
-            rates: loc.rates || { ngn: 5000, usd: 10, gbp: 8, eur: 9 },
-            isActive: loc.is_active ?? true,
-            createdAt: loc.created_at,
-          }));
-          setShippingLocations(formatted);
+        const { data: sData } = await supabase
+          .from('shipping_locations')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (sData) {
+          setShippingLocations(sData.map(mapSupabaseShippingLocation));
         }
 
         // Coupons
@@ -336,6 +330,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }
           }
         )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'shipping_locations' },
+          async () => {
+            const { data } = await supabase
+              .from('shipping_locations')
+              .select('*')
+              .order('created_at', { ascending: false });
+            if (data) setShippingLocations(data.map(mapSupabaseShippingLocation));
+          }
+        )
         .subscribe();
     }
 
@@ -381,11 +386,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleOpenAddShippingModal = () => {
     setShippingToEdit(null);
     setShippingForm({
-      name: '',
-      country: 'Nigeria',
-      timeframe: '2-4 Business Days',
-      rates: { ngn: 5000, usd: 10, gbp: 8, eur: 9 },
-      isActive: true,
+      state_region: '',
+      rate_ngn: 5000,
+      delivery_timeframe: '24-48 Hours',
+      is_active: true,
     });
     setIsShippingModalOpen(true);
   };
@@ -393,80 +397,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleOpenEditShippingModal = (loc: ShippingLocation) => {
     setShippingToEdit(loc);
     setShippingForm({
-      name: loc.name,
-      country: loc.country,
-      timeframe: loc.timeframe,
-      rates: { ...loc.rates },
-      isActive: loc.isActive,
+      state_region: loc.state_region || loc.name || '',
+      rate_ngn: loc.rate_ngn ?? loc.rates?.ngn ?? 5000,
+      delivery_timeframe: loc.delivery_timeframe || loc.timeframe || '24-48 Hours',
+      is_active: loc.is_active ?? loc.isActive ?? true,
     });
     setIsShippingModalOpen(true);
   };
 
   const handleSaveShippingLocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shippingForm.name.trim()) return;
+    if (!shippingForm.state_region.trim()) {
+      showToast('Please enter a State / Region name.');
+      return;
+    }
 
-    if (shippingToEdit) {
-      const updated = shippingLocations.map((loc) =>
-        loc.id === shippingToEdit.id
-          ? {
-              ...loc,
-              name: shippingForm.name,
-              country: shippingForm.country,
-              timeframe: shippingForm.timeframe,
-              rates: shippingForm.rates,
-              isActive: shippingForm.isActive,
-            }
-          : loc
-      );
-      setShippingLocations(updated);
-      showToast(`Shipping zone "${shippingForm.name}" updated!`);
+    const rateNgn = Math.max(0, Number(shippingForm.rate_ngn) || 0);
+    const rateUsd = Math.round((rateNgn / 1600) * 100) / 100;
+    const rateGbp = Math.round((rateNgn / 1900) * 100) / 100;
+    const rateEur = Math.round((rateNgn / 1650) * 100) / 100;
 
-      if (isSupabaseConfigured && supabase) {
-        await supabase
-          .from('shipping_locations')
-          .update({
-            name: shippingForm.name,
-            country: shippingForm.country,
-            timeframe: shippingForm.timeframe,
-            rates: shippingForm.rates,
-            is_active: shippingForm.isActive,
-          })
-          .eq('id', shippingToEdit.id);
+    const payload = {
+      state_region: shippingForm.state_region.trim(),
+      rate_ngn: rateNgn,
+      rate_usd: rateUsd,
+      rate_gbp: rateGbp,
+      rate_eur: rateEur,
+      delivery_timeframe: shippingForm.delivery_timeframe.trim() || '24-48 Hours',
+      is_active: shippingForm.is_active,
+    };
+
+    try {
+      if (shippingToEdit) {
+        if (isSupabaseConfigured && supabase) {
+          const { data, error } = await supabase
+            .from('shipping_locations')
+            .upsert([{ id: shippingToEdit.id, ...payload }])
+            .select('*')
+            .single();
+
+          if (error) {
+            console.error('Error saving shipping location:', error);
+            showToast(`Error: ${error.message}`);
+            return;
+          }
+          if (data) {
+            const mapped = mapSupabaseShippingLocation(data);
+            setShippingLocations(shippingLocations.map((l) => (l.id === shippingToEdit.id ? mapped : l)));
+          }
+        } else {
+          const updatedLoc = mapSupabaseShippingLocation({ id: shippingToEdit.id, ...payload });
+          setShippingLocations(shippingLocations.map((l) => (l.id === shippingToEdit.id ? updatedLoc : l)));
+        }
+        showToast(`Shipping zone "${payload.state_region}" updated!`);
+      } else {
+        if (isSupabaseConfigured && supabase) {
+          const { data, error } = await supabase
+            .from('shipping_locations')
+            .insert([payload])
+            .select('*')
+            .single();
+
+          if (error) {
+            console.error('Error inserting shipping location:', error);
+            showToast(`Error: ${error.message}`);
+            return;
+          }
+          if (data) {
+            const mapped = mapSupabaseShippingLocation(data);
+            setShippingLocations([mapped, ...shippingLocations]);
+          }
+        } else {
+          const newLoc = mapSupabaseShippingLocation({ id: `loc-${Date.now()}`, ...payload });
+          setShippingLocations([newLoc, ...shippingLocations]);
+        }
+        showToast(`New shipping location "${payload.state_region}" created!`);
       }
-    } else {
-      const newLoc: ShippingLocation = {
-        id: `loc-${Date.now()}`,
-        name: shippingForm.name,
-        country: shippingForm.country,
-        timeframe: shippingForm.timeframe,
-        rates: shippingForm.rates,
-        isActive: shippingForm.isActive,
-        createdAt: new Date().toISOString(),
-      };
-      setShippingLocations([newLoc, ...shippingLocations]);
-      showToast(`New shipping location "${newLoc.name}" created!`);
-
-      if (isSupabaseConfigured && supabase) {
-        await supabase.from('shipping_locations').insert([
-          {
-            id: newLoc.id,
-            name: newLoc.name,
-            country: newLoc.country,
-            timeframe: newLoc.timeframe,
-            rates: newLoc.rates,
-            is_active: newLoc.isActive,
-          },
-        ]);
-      }
+    } catch (err: any) {
+      console.error('Save shipping location failed:', err);
+      showToast('Save failed.');
     }
 
     setIsShippingModalOpen(false);
   };
 
+  const handleDeleteShippingLocation = async (locId: string, locName: string) => {
+    if (!window.confirm(`Are you sure you want to delete shipping zone "${locName}"?`)) return;
+
+    setShippingLocations((prev) => prev.filter((l) => l.id !== locId));
+    showToast(`Shipping zone "${locName}" deleted.`);
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('shipping_locations').delete().eq('id', locId);
+      if (error) {
+        console.error('Error deleting shipping location:', error);
+      }
+    }
+  };
+
   const handleToggleShippingActive = async (locId: string, currentStatus: boolean) => {
     const updated = shippingLocations.map((loc) =>
-      loc.id === locId ? { ...loc, isActive: !currentStatus } : loc
+      loc.id === locId ? { ...loc, is_active: !currentStatus, isActive: !currentStatus } : loc
     );
     setShippingLocations(updated);
 
@@ -1457,7 +1488,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     Shipping Locations & Rates
                   </h2>
                   <p className="text-xs text-gray-500">
-                    Configure delivery zones, multi-currency shipping fees, and lead times.
+                    Configure delivery zones, state/region rates in NGN (auto-calculating USD, GBP, EUR), and lead times.
                   </p>
                 </div>
 
@@ -1470,72 +1501,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {shippingLocations.map((loc) => (
-                  <div
-                    key={loc.id}
-                    className="bg-white rounded-2xl p-6 border border-gray-200 shadow-2xs flex flex-col justify-between space-y-4 relative"
+              {shippingLocations.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 text-center border border-gray-200 space-y-3">
+                  <Truck className="w-12 h-12 text-[#D1B464] mx-auto" />
+                  <h3 className="font-serif-title text-lg font-bold text-[#1B2A4A]">No Shipping Rates Found</h3>
+                  <p className="text-xs text-gray-500 max-w-md mx-auto">
+                    There are currently no active shipping zones in your Supabase database. Click below to add your first zone.
+                  </p>
+                  <button
+                    onClick={handleOpenAddShippingModal}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#1B2A4A] text-white font-bold text-xs uppercase tracking-wider"
                   >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-blue-800">
-                          {loc.country}
-                        </span>
-                        <button
-                          onClick={() => handleToggleShippingActive(loc.id, loc.isActive)}
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase transition-all cursor-pointer ${
-                            loc.isActive
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}
-                        >
-                          {loc.isActive ? 'Active' : 'Inactive'}
-                        </button>
-                      </div>
+                    <Plus className="w-4 h-4 text-[#D1B464]" />
+                    <span>Create Shipping Zone</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {shippingLocations.map((loc) => {
+                    const ngnRate = loc.rate_ngn ?? loc.rates?.ngn ?? 0;
+                    const usdRate = loc.rate_usd ?? loc.rates?.usd ?? Math.round((ngnRate / 1600) * 100) / 100;
+                    const gbpRate = loc.rate_gbp ?? loc.rates?.gbp ?? Math.round((ngnRate / 1900) * 100) / 100;
+                    const eurRate = loc.rate_eur ?? loc.rates?.eur ?? Math.round((ngnRate / 1650) * 100) / 100;
+                    const isActive = loc.is_active ?? loc.isActive ?? true;
+                    const regionName = loc.state_region || loc.name || 'Delivery Zone';
+                    const timeframe = loc.delivery_timeframe || loc.timeframe || '2-4 Business Days';
 
-                      <h3 className="font-serif-title text-lg font-bold text-[#1B2A4A]">
-                        {loc.name}
-                      </h3>
-
-                      <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-1">
-                        <Clock className="w-3.5 h-3.5 text-[#D1B464]" />
-                        <span>{loc.timeframe}</span>
-                      </p>
-
-                      <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-gray-400">NGN Rate:</span>
-                          <p className="font-bold text-[#1A1A1A]">
-                            ₦{loc.rates.ngn?.toLocaleString()}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">USD Rate:</span>
-                          <p className="font-bold text-[#1A1A1A]">${loc.rates.usd}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">GBP Rate:</span>
-                          <p className="font-bold text-[#1A1A1A]">£{loc.rates.gbp}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">EUR Rate:</span>
-                          <p className="font-bold text-[#1A1A1A]">€{loc.rates.eur}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-gray-100 flex items-center justify-end">
-                      <button
-                        onClick={() => handleOpenEditShippingModal(loc)}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-[#1B2A4A] hover:text-[#D1B464] cursor-pointer"
+                    return (
+                      <div
+                        key={loc.id}
+                        className="bg-white rounded-2xl p-6 border border-gray-200 shadow-2xs flex flex-col justify-between space-y-4 relative"
                       >
-                        <Edit className="w-3.5 h-3.5" />
-                        <span>Edit Rates</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-blue-800">
+                              {timeframe}
+                            </span>
+                            <button
+                              onClick={() => handleToggleShippingActive(loc.id, isActive)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                                isActive
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-gray-100 text-gray-500'
+                              }`}
+                            >
+                              {isActive ? 'Active' : 'Inactive'}
+                            </button>
+                          </div>
+
+                          <h3 className="font-serif-title text-lg font-bold text-[#1B2A4A]">
+                            {regionName}
+                          </h3>
+
+                          <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-1">
+                            <Clock className="w-3.5 h-3.5 text-[#D1B464]" />
+                            <span>{timeframe}</span>
+                          </p>
+
+                          <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-gray-400">NGN Rate (Base):</span>
+                              <p className="font-bold text-[#1A1A1A]">
+                                ₦{ngnRate.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">USD Rate (/1600):</span>
+                              <p className="font-bold text-[#1A1A1A]">${usdRate}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">GBP Rate (/1900):</span>
+                              <p className="font-bold text-[#1A1A1A]">£{gbpRate}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">EUR Rate (/1650):</span>
+                              <p className="font-bold text-[#1A1A1A]">€{eurRate}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                          <button
+                            onClick={() => handleOpenEditShippingModal(loc)}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-[#1B2A4A] hover:text-[#D1B464] cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>Edit Zone</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteShippingLocation(loc.id, regionName)}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-800 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -2178,107 +2244,71 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <form onSubmit={handleSaveShippingLocation} className="space-y-4 text-xs">
                 <div>
                   <label className="block font-bold text-[#1B2A4A] uppercase mb-1">
-                    Location / Zone Name *
+                    State / Region Name *
                   </label>
                   <input
                     type="text"
                     required
-                    value={shippingForm.name}
-                    onChange={(e) => setShippingForm({ ...shippingForm, name: e.target.value })}
-                    placeholder="e.g. Lagos Island / UK Express"
-                    className="w-full p-3 rounded-xl border border-gray-200 text-xs focus:border-[#D1B464] outline-none"
+                    value={shippingForm.state_region}
+                    onChange={(e) => setShippingForm({ ...shippingForm, state_region: e.target.value })}
+                    placeholder="e.g. Lagos Island, Abuja, UK - Standard"
+                    className="w-full p-3 rounded-xl border border-gray-200 text-xs focus:border-[#D1B464] outline-none font-bold text-[#1B2A4A]"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-[#1B2A4A] uppercase mb-1">Country</label>
-                    <input
-                      type="text"
-                      value={shippingForm.country}
-                      onChange={(e) =>
-                        setShippingForm({ ...shippingForm, country: e.target.value })
-                      }
-                      className="w-full p-3 rounded-xl border border-gray-200 text-xs outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-[#1B2A4A] uppercase mb-1">
-                      Timeframe
-                    </label>
-                    <input
-                      type="text"
-                      value={shippingForm.timeframe}
-                      onChange={(e) =>
-                        setShippingForm({ ...shippingForm, timeframe: e.target.value })
-                      }
-                      placeholder="e.g. 2-4 Business Days"
-                      className="w-full p-3 rounded-xl border border-gray-200 text-xs outline-none"
-                    />
-                  </div>
+                <div>
+                  <label className="block font-bold text-[#1B2A4A] uppercase mb-1">
+                    Delivery Timeframe *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={shippingForm.delivery_timeframe}
+                    onChange={(e) =>
+                      setShippingForm({ ...shippingForm, delivery_timeframe: e.target.value })
+                    }
+                    placeholder="e.g. 24-48 Hours, 3-5 Business Days"
+                    className="w-full p-3 rounded-xl border border-gray-200 text-xs outline-none"
+                  />
                 </div>
 
                 <div className="space-y-2 pt-2 border-t border-gray-100">
                   <label className="block font-bold text-[#1B2A4A] uppercase">
-                    Multi-Currency Shipping Rates
+                    Base NGN Rate & Auto-Calculated Currencies
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-gray-500 font-bold">Base Cost in NGN (₦) *</span>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      value={shippingForm.rate_ngn}
+                      onChange={(e) =>
+                        setShippingForm({ ...shippingForm, rate_ngn: Number(e.target.value) })
+                      }
+                      className="w-full p-3 rounded-xl border border-gray-300 font-bold text-sm text-[#1B2A4A] outline-none focus:border-[#1B2A4A] mt-1"
+                    />
+                  </div>
+
+                  {/* Auto-calculated conversions preview box */}
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 grid grid-cols-3 gap-2 text-center text-xs">
                     <div>
-                      <span className="text-gray-400">NGN ₦</span>
-                      <input
-                        type="number"
-                        value={shippingForm.rates.ngn}
-                        onChange={(e) =>
-                          setShippingForm({
-                            ...shippingForm,
-                            rates: { ...shippingForm.rates, ngn: Number(e.target.value) },
-                          })
-                        }
-                        className="w-full p-2.5 rounded-xl border text-xs outline-none"
-                      />
+                      <span className="text-gray-400 text-[10px] uppercase font-bold block">USD (/1600)</span>
+                      <span className="font-bold text-[#1B2A4A]">
+                        ${(Math.round((shippingForm.rate_ngn / 1600) * 100) / 100).toFixed(2)}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-gray-400">USD $</span>
-                      <input
-                        type="number"
-                        value={shippingForm.rates.usd}
-                        onChange={(e) =>
-                          setShippingForm({
-                            ...shippingForm,
-                            rates: { ...shippingForm.rates, usd: Number(e.target.value) },
-                          })
-                        }
-                        className="w-full p-2.5 rounded-xl border text-xs outline-none"
-                      />
+                      <span className="text-gray-400 text-[10px] uppercase font-bold block">GBP (/1900)</span>
+                      <span className="font-bold text-[#1B2A4A]">
+                        £{(Math.round((shippingForm.rate_ngn / 1900) * 100) / 100).toFixed(2)}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-gray-400">GBP £</span>
-                      <input
-                        type="number"
-                        value={shippingForm.rates.gbp}
-                        onChange={(e) =>
-                          setShippingForm({
-                            ...shippingForm,
-                            rates: { ...shippingForm.rates, gbp: Number(e.target.value) },
-                          })
-                        }
-                        className="w-full p-2.5 rounded-xl border text-xs outline-none"
-                      />
-                    </div>
-                    <div>
-                      <span className="text-gray-400">EUR €</span>
-                      <input
-                        type="number"
-                        value={shippingForm.rates.eur}
-                        onChange={(e) =>
-                          setShippingForm({
-                            ...shippingForm,
-                            rates: { ...shippingForm.rates, eur: Number(e.target.value) },
-                          })
-                        }
-                        className="w-full p-2.5 rounded-xl border text-xs outline-none"
-                      />
+                      <span className="text-gray-400 text-[10px] uppercase font-bold block">EUR (/1650)</span>
+                      <span className="font-bold text-[#1B2A4A]">
+                        €{(Math.round((shippingForm.rate_ngn / 1650) * 100) / 100).toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2287,14 +2317,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <input
                     type="checkbox"
                     id="shippingActiveToggle"
-                    checked={shippingForm.isActive}
+                    checked={shippingForm.is_active}
                     onChange={(e) =>
-                      setShippingForm({ ...shippingForm, isActive: e.target.checked })
+                      setShippingForm({ ...shippingForm, is_active: e.target.checked })
                     }
                     className="w-4 h-4 rounded text-[#1B2A4A] cursor-pointer"
                   />
                   <label htmlFor="shippingActiveToggle" className="font-bold text-[#1B2A4A] cursor-pointer">
-                    Zone Active for Checkout
+                    Zone Active for Live Checkout
                   </label>
                 </div>
 
@@ -2302,7 +2332,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   type="submit"
                   className="w-full py-3 rounded-full bg-[#1B2A4A] text-white font-bold text-xs uppercase tracking-wider hover:bg-[#121E36] transition-colors cursor-pointer"
                 >
-                  Save Shipping Zone
+                  {shippingToEdit ? 'Save Shipping Changes' : 'Create Shipping Zone'}
                 </button>
               </form>
             </motion.div>

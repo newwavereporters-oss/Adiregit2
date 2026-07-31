@@ -37,6 +37,7 @@ import {
 import { INITIAL_PRODUCTS, INITIAL_SHIPPING_LOCATIONS, INITIAL_COUPONS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { mapSupabaseProductToProduct } from '../utils/productMapper';
+import { mapSupabaseShippingLocation } from '../utils/shippingMapper';
 import {
   convertFromNGN,
   formatCurrencyValue,
@@ -124,10 +125,18 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
       // 2. Load Shipping Locations
       try {
         if (isSupabaseConfigured && supabase) {
-          const { data } = await supabase.from('shipping_locations').select('*').eq('is_active', true);
-          if (data && data.length > 0 && isMounted) {
-            setShippingLocations(data);
-            setSelectedShippingId(data[0].id);
+          const { data } = await supabase
+            .from('shipping_locations')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false });
+
+          if (data && isMounted) {
+            const mapped = data.map(mapSupabaseShippingLocation);
+            setShippingLocations(mapped);
+            if (mapped.length > 0) {
+              setSelectedShippingId((prev) => (mapped.some((m) => m.id === prev) ? prev : mapped[0].id));
+            }
           }
         }
       } catch (e) {
@@ -138,8 +147,37 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
     }
 
     loadData();
+
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      channel = supabase
+        .channel('product_page_shipping_live')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'shipping_locations' },
+          async () => {
+            const { data } = await supabase
+              .from('shipping_locations')
+              .select('*')
+              .eq('is_active', true)
+              .order('created_at', { ascending: false });
+            if (isMounted && data) {
+              const mapped = data.map(mapSupabaseShippingLocation);
+              setShippingLocations(mapped);
+              if (mapped.length > 0) {
+                setSelectedShippingId((prev) => (mapped.some((m) => m.id === prev) ? prev : mapped[0].id));
+              }
+            }
+          }
+        )
+        .subscribe();
+    }
+
     return () => {
       isMounted = false;
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [slug]);
 
@@ -176,10 +214,17 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
 
   // 3. Shipping Location Rate
   const activeShippingLoc = shippingLocations.find((loc) => loc.id === selectedShippingId) || shippingLocations[0];
-  const shippingFeeNgn = activeShippingLoc?.rates?.ngn || 5500;
-  const shippingFeeInCurrency = activeCurrency === 'NGN'
-    ? shippingFeeNgn
-    : (activeShippingLoc?.rates && activeShippingLoc.rates[activeCurrency.toLowerCase() as keyof typeof activeShippingLoc.rates]) || convertFromNGN(shippingFeeNgn, activeCurrency);
+
+  const getShippingFee = (loc: ShippingLocation | undefined) => {
+    if (!loc) return 0;
+    if (activeCurrency === 'NGN') return loc.rate_ngn ?? loc.rates?.ngn ?? 0;
+    if (activeCurrency === 'USD') return loc.rate_usd ?? loc.rates?.usd ?? 0;
+    if (activeCurrency === 'GBP') return loc.rate_gbp ?? loc.rates?.gbp ?? 0;
+    if (activeCurrency === 'EUR') return loc.rate_eur ?? loc.rates?.eur ?? 0;
+    return loc.rate_usd ?? loc.rates?.usd ?? 0;
+  };
+
+  const shippingFeeInCurrency = getShippingFee(activeShippingLoc);
 
   const grandTotal = Math.max(0, subtotalBeforeDiscounts - totalDiscountAmount + shippingFeeInCurrency);
 
@@ -790,16 +835,26 @@ I will attach my payment receipt here.`;
                   onChange={(e) => setSelectedShippingId(e.target.value)}
                   className="w-full pl-10 pr-8 py-3 rounded-2xl border border-gray-300 bg-white text-xs font-bold text-[#1B2A4A] outline-none focus:border-[#1B2A4A] appearance-none cursor-pointer"
                 >
-                  {shippingLocations.map((loc) => {
-                    const locRate = activeCurrency === 'NGN'
-                      ? loc.rates?.ngn || 5500
-                      : (loc.rates && loc.rates[activeCurrency.toLowerCase() as keyof typeof loc.rates]) || convertFromNGN(loc.rates?.ngn || 5500, activeCurrency);
-                    return (
-                      <option key={loc.id} value={loc.id}>
-                        {loc.name} ({loc.timeframe}) — +{formatCurrencyValue(locRate, activeCurrency)}
-                      </option>
-                    );
-                  })}
+                  {shippingLocations.length === 0 ? (
+                    <option value="">No Active Delivery Zones Configured</option>
+                  ) : (
+                    shippingLocations.map((loc) => {
+                      let locRate = 0;
+                      if (activeCurrency === 'NGN') locRate = loc.rate_ngn ?? loc.rates?.ngn ?? 0;
+                      else if (activeCurrency === 'USD') locRate = loc.rate_usd ?? loc.rates?.usd ?? 0;
+                      else if (activeCurrency === 'GBP') locRate = loc.rate_gbp ?? loc.rates?.gbp ?? 0;
+                      else if (activeCurrency === 'EUR') locRate = loc.rate_eur ?? loc.rates?.eur ?? 0;
+
+                      const name = loc.state_region || loc.name || 'Standard Courier';
+                      const timeframe = loc.delivery_timeframe || loc.timeframe || '2-4 Days';
+
+                      return (
+                        <option key={loc.id} value={loc.id}>
+                          {name} ({timeframe}) — +{formatCurrencyValue(locRate, activeCurrency)}
+                        </option>
+                      );
+                    })
+                  )}
                 </select>
               </div>
             </div>

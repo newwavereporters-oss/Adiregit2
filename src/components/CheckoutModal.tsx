@@ -26,6 +26,7 @@ import {
 } from '../types/admin';
 import { INITIAL_SHIPPING_LOCATIONS, INITIAL_COUPONS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { mapSupabaseShippingLocation } from '../utils/shippingMapper';
 
 interface CartItem {
   product: Product;
@@ -71,38 +72,69 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [copiedOrderNum, setCopiedOrderNum] = useState(false);
 
-  // Fetch active shipping locations from Supabase or local fallback
+  // Fetch active shipping locations directly from Supabase with realtime updates
   useEffect(() => {
-    if (isSupabaseConfigured && supabase) {
-      supabase
-        .from('shipping_locations')
-        .select('*')
-        .eq('is_active', true)
-        .then(({ data, error }) => {
-          if (data && data.length > 0 && !error) {
-            const formatted: ShippingLocation[] = data.map((d) => ({
-              id: d.id,
-              name: d.name,
-              country: d.country,
-              timeframe: d.timeframe,
-              rates: d.rates || { ngn: 5000, usd: 5, gbp: 4, eur: 4.5 },
-              isActive: d.is_active ?? true,
-            }));
-            setShippingLocations(formatted);
-            if (formatted.length > 0) {
-              setSelectedLocationId(formatted[0].id);
+    let isMounted = true;
+
+    async function loadActiveShippingLocations() {
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase
+          .from('shipping_locations')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false });
+
+        if (isMounted) {
+          if (data && !error) {
+            const mapped = data.map(mapSupabaseShippingLocation);
+            setShippingLocations(mapped);
+            if (mapped.length > 0) {
+              setSelectedLocationId((prev) => (mapped.some((m) => m.id === prev) ? prev : mapped[0].id));
             }
           } else {
-            if (INITIAL_SHIPPING_LOCATIONS.length > 0) {
-              setSelectedLocationId(INITIAL_SHIPPING_LOCATIONS[0].id);
-            }
+            setShippingLocations([]);
           }
-        });
-    } else {
-      if (INITIAL_SHIPPING_LOCATIONS.length > 0) {
-        setSelectedLocationId(INITIAL_SHIPPING_LOCATIONS[0].id);
+        }
+      } else {
+        if (isMounted) setShippingLocations([]);
       }
     }
+
+    if (isOpen) {
+      loadActiveShippingLocations();
+    }
+
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase && isOpen) {
+      channel = supabase
+        .channel('checkout_shipping_live')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'shipping_locations' },
+          async () => {
+            const { data } = await supabase
+              .from('shipping_locations')
+              .select('*')
+              .eq('is_active', true)
+              .order('created_at', { ascending: false });
+            if (isMounted && data) {
+              const mapped = data.map(mapSupabaseShippingLocation);
+              setShippingLocations(mapped);
+              if (mapped.length > 0) {
+                setSelectedLocationId((prev) => (mapped.some((m) => m.id === prev) ? prev : mapped[0].id));
+              }
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      isMounted = false;
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -125,10 +157,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const discountAmount = (subtotal * discountPercent) / 100;
   const discountedSubtotal = subtotal - discountAmount;
 
-  // Shipping fee calculation
-  const shippingFee = selectedLocation
-    ? selectedLocation.rates[currencyKey] ?? selectedLocation.rates.usd
-    : 0;
+  // Shipping fee calculation directly from state_region rate fields or rates object
+  const getShippingFeeForLocation = (loc: ShippingLocation | undefined) => {
+    if (!loc) return 0;
+    if (activeCurrency === 'NGN') return loc.rate_ngn ?? loc.rates?.ngn ?? 0;
+    if (activeCurrency === 'USD') return loc.rate_usd ?? loc.rates?.usd ?? 0;
+    if (activeCurrency === 'GBP') return loc.rate_gbp ?? loc.rates?.gbp ?? 0;
+    if (activeCurrency === 'EUR') return loc.rate_eur ?? loc.rates?.eur ?? 0;
+    return loc.rate_usd ?? loc.rates?.usd ?? 0;
+  };
+
+  const shippingFee = getShippingFeeForLocation(selectedLocation);
 
   // Grand Total
   const grandTotal = discountedSubtotal + shippingFee;
@@ -237,7 +276,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       shippingCity,
       shippingCountry,
       shippingLocationId: selectedLocation?.id,
-      shippingLocationName: selectedLocation?.name || 'Standard Courier',
+      shippingLocationName: selectedLocation?.state_region || selectedLocation?.name || 'Standard Courier',
       shippingFee,
       subtotalAmount: subtotal,
       discountAmount,
@@ -265,7 +304,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               shipping_city: shippingCity,
               shipping_country: shippingCountry,
               shipping_location_id: selectedLocation?.id,
-              shipping_location_name: selectedLocation?.name,
+              shipping_location_name: selectedLocation?.state_region || selectedLocation?.name || 'Standard Courier',
               shipping_fee: shippingFee,
               subtotal_amount: subtotal,
               discount_amount: discountAmount,
@@ -589,21 +628,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     onChange={(e) => setSelectedLocationId(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-[#1B2A4A] focus:border-[#D1B464] outline-none cursor-pointer"
                   >
-                    {shippingLocations.map((loc) => {
-                      const rateVal = loc.rates[currencyKey] ?? loc.rates.usd;
-                      return (
-                        <option key={loc.id} value={loc.id}>
-                          {loc.name} ({loc.country}) — {currencySymbol}
-                          {rateVal.toLocaleString()} [{loc.timeframe}]
-                        </option>
-                      );
-                    })}
+                    {shippingLocations.length === 0 ? (
+                      <option value="">No Active Delivery Zones Configured</option>
+                    ) : (
+                      shippingLocations.map((loc) => {
+                        let rateVal = 0;
+                        if (activeCurrency === 'NGN') rateVal = loc.rate_ngn ?? loc.rates?.ngn ?? 0;
+                        else if (activeCurrency === 'USD') rateVal = loc.rate_usd ?? loc.rates?.usd ?? 0;
+                        else if (activeCurrency === 'GBP') rateVal = loc.rate_gbp ?? loc.rates?.gbp ?? 0;
+                        else if (activeCurrency === 'EUR') rateVal = loc.rate_eur ?? loc.rates?.eur ?? 0;
+
+                        const regionName = loc.state_region || loc.name || 'Standard Zone';
+                        const timeframe = loc.delivery_timeframe || loc.timeframe || 'Standard Courier';
+
+                        return (
+                          <option key={loc.id} value={loc.id}>
+                            {regionName} — {currencySymbol}
+                            {rateVal.toLocaleString()} [{timeframe}]
+                          </option>
+                        );
+                      })
+                    )}
                   </select>
 
                   {selectedLocation && (
                     <div className="p-3.5 bg-blue-50/60 border border-blue-100 rounded-xl text-xs text-blue-900 flex items-center justify-between">
                       <span className="font-medium">Estimated Delivery Window:</span>
-                      <span className="font-bold">{selectedLocation.timeframe}</span>
+                      <span className="font-bold">
+                        {selectedLocation.delivery_timeframe || selectedLocation.timeframe || '2-4 Business Days'}
+                      </span>
                     </div>
                   )}
                 </div>

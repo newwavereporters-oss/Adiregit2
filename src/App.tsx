@@ -37,8 +37,10 @@ import { CurrencyDropdown } from './components/CurrencyDropdown';
 import { FloatingTrackOrderCard } from './components/FloatingTrackOrderCard';
 import { mapSupabaseProductToProduct } from './utils/productMapper';
 
+import juliusAnkaraHero from './assets/images/Julius holding an ankara clothe.png';
+
 // IMAGE ASSETS
-const HERO_IMAGE = '/src/assets/images/adire_hero_fashion_1785421009712.jpg';
+const HERO_IMAGE = juliusAnkaraHero;
 const ARTISAN_IMAGE = '/src/assets/images/adire_artisan_craft_1785421029164.jpg';
 const FABRIC_SWATCH_IMAGE = '/src/assets/images/adire_fabric_swatch_1785421041385.jpg';
 const COLLAGE_IMAGE_2 = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80';
@@ -687,11 +689,11 @@ export default function App() {
                 <div className="aspect-[4/5] relative overflow-hidden group">
                   <img
                     src={HERO_IMAGE}
-                    alt="DSP Adire Luxury Indigo Garment"
+                    alt="Julius holding an Ankara cloth"
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A] via-[#1B2A4A]/20 to-transparent opacity-80" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/60 via-transparent to-transparent opacity-60 pointer-events-none" />
 
                   <div className="absolute bottom-6 left-6 right-6 p-5 rounded-xl bg-white/90 backdrop-blur-md border border-[#D1B464]/40 shadow-lg">
                     <div className="flex items-start gap-3">

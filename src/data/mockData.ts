@@ -152,44 +152,7 @@ export const INITIAL_LEADS: Lead[] = [
   },
 ];
 
-export const INITIAL_SHIPPING_LOCATIONS: import('../types/admin').ShippingLocation[] = [
-  {
-    id: 'loc-001',
-    name: 'Lagos Mainland & Island',
-    country: 'Nigeria',
-    timeframe: '1 - 2 Business Days',
-    rates: { ngn: 5500, usd: 5, gbp: 4, eur: 4.5 },
-    isActive: true,
-    createdAt: '2026-07-01T00:00:00Z',
-  },
-  {
-    id: 'loc-002',
-    name: 'Abuja & Major Cities (Nigeria)',
-    country: 'Nigeria',
-    timeframe: '2 - 3 Business Days',
-    rates: { ngn: 12000, usd: 10, gbp: 8, eur: 9 },
-    isActive: true,
-    createdAt: '2026-07-01T00:00:00Z',
-  },
-  {
-    id: 'loc-003',
-    name: 'United Kingdom Express Courier',
-    country: 'United Kingdom',
-    timeframe: '3 - 5 Business Days',
-    rates: { ngn: 45000, usd: 35, gbp: 28, eur: 32 },
-    isActive: true,
-    createdAt: '2026-07-01T00:00:00Z',
-  },
-  {
-    id: 'loc-004',
-    name: 'USA & Canada DHL Doorstep',
-    country: 'United States',
-    timeframe: '4 - 6 Business Days',
-    rates: { ngn: 58000, usd: 45, gbp: 36, eur: 40 },
-    isActive: true,
-    createdAt: '2026-07-01T00:00:00Z',
-  },
-];
+export const INITIAL_SHIPPING_LOCATIONS: import('../types/admin').ShippingLocation[] = [];
 
 export const INITIAL_COUPONS: import('../types/admin').Coupon[] = [
   {
