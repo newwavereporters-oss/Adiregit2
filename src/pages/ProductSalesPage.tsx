@@ -67,6 +67,14 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const [selectedSize, setSelectedSize] = useState<string>('M');
   const [quantityYards, setQuantityYards] = useState<number>(1);
   const [couponCode, setCouponCode] = useState<string>('');
+
+  // Sync quantity state when product loads with minOrderQuantity
+  useEffect(() => {
+    if (product) {
+      const minQty = product.minOrderQuantity || 1;
+      setQuantityYards((q) => (q < minQty ? minQty : q));
+    }
+  }, [product?.id, product?.minOrderQuantity]);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
 
@@ -227,7 +235,20 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
     );
   }
 
-  // PRICING CALCULATIONS
+  // PRICING & UNIT CALCULATIONS
+  const unitLabel = product.unit === 'yard' ? 'Yard' : product.unit === 'set' ? 'Set' : 'Piece';
+  const unitPlural = (qty = 1) => {
+    if (product.unit === 'yard') return qty === 1 ? 'Yard' : 'Yards';
+    if (product.unit === 'set') return qty === 1 ? 'Set' : 'Sets';
+    return qty === 1 ? 'Piece' : 'Pieces';
+  };
+  const unitAbbr = (qty = 1) => {
+    if (product.unit === 'yard') return qty === 1 ? 'Yd' : 'Yds';
+    if (product.unit === 'set') return qty === 1 ? 'Set' : 'Sets';
+    return qty === 1 ? 'Pc' : 'Pcs';
+  };
+  const minOrderQty = product.minOrderQuantity || 1;
+
   const baseNgnUnitPrice = product.prices?.ngn || 250000;
   const unitPriceInCurrency = activeCurrency === 'NGN'
     ? baseNgnUnitPrice
@@ -589,13 +610,13 @@ I will attach my payment receipt here.`;
                 <span className="text-xs text-gray-400 block font-medium">Direct-from-Factory Rate</span>
                 <span className="font-serif-title text-2xl sm:text-3xl font-black text-[#1B2A4A]">
                   {formatCurrencyValue(unitPriceInCurrency, activeCurrency)}
-                  <span className="text-xs font-normal text-gray-500"> / yard</span>
+                  <span className="text-xs font-normal text-gray-500"> per {unitLabel}</span>
                 </span>
               </div>
 
               <div className="text-right">
                 <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 inline-block">
-                  {product.stockQuantity || 12} Yds Factory Stock
+                  {product.stockQuantity || 12} {unitAbbr(product.stockQuantity || 12)} Factory Stock
                 </span>
               </div>
             </div>
@@ -796,21 +817,29 @@ I will attach my payment receipt here.`;
               </div>
             </div>
 
-            {/* 2. QUANTITY STEPPER (YARDS) */}
+            {/* 2. QUANTITY STEPPER */}
             <div className="space-y-3">
-              <label className="text-xs font-bold text-[#1B2A4A] uppercase tracking-wider block">
-                2. Quantity (Yards)
-              </label>
+              <div className="flex items-center justify-between max-w-xs">
+                <label className="text-xs font-bold text-[#1B2A4A] uppercase tracking-wider block">
+                  2. Quantity ({unitPlural(2)})
+                </label>
+                {minOrderQty > 1 && (
+                  <span className="text-[11px] font-semibold text-[#D1B464]">
+                    Min. order: {minOrderQty}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-4 bg-[#FAFAFA] p-2 rounded-2xl border border-gray-200 max-w-xs">
                 <button
                   type="button"
-                  onClick={() => setQuantityYards((q) => Math.max(1, q - 1))}
-                  className="w-10 h-10 rounded-xl bg-white text-[#1B2A4A] font-bold text-lg hover:bg-gray-200 flex items-center justify-center border border-gray-200 cursor-pointer"
+                  disabled={quantityYards <= minOrderQty}
+                  onClick={() => setQuantityYards((q) => Math.max(minOrderQty, q - 1))}
+                  className="w-10 h-10 rounded-xl bg-white text-[#1B2A4A] font-bold text-lg hover:bg-gray-200 disabled:opacity-40 disabled:hover:bg-white flex items-center justify-center border border-gray-200 cursor-pointer"
                 >
                   -
                 </button>
                 <div className="flex-1 text-center font-bold text-base text-[#1B2A4A]">
-                  {quantityYards} {quantityYards === 1 ? 'Yard' : 'Yards'}
+                  {quantityYards} {unitPlural(quantityYards)}
                 </div>
                 <button
                   type="button"
@@ -966,7 +995,7 @@ I will attach my payment receipt here.`;
               {/* BREAKDOWN SUMMARY BOX */}
               <div className="bg-white p-4 rounded-xl border border-gray-200 text-xs space-y-2">
                 <div className="flex justify-between text-gray-600">
-                  <span>Subtotal ({quantityYards} Yds @ {formatCurrencyValue(unitPriceInCurrency, activeCurrency)})</span>
+                  <span>Subtotal ({quantityYards} {unitAbbr(quantityYards)} @ {formatCurrencyValue(unitPriceInCurrency, activeCurrency)})</span>
                   <span>{formatCurrencyValue(subtotalBeforeDiscounts, activeCurrency)}</span>
                 </div>
 

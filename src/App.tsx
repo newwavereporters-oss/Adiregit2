@@ -279,6 +279,7 @@ export default function App() {
   }, []);
 
   const handleAddToCart = (product: Product) => {
+    const minQty = product.minOrderQuantity || 1;
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
@@ -286,7 +287,7 @@ export default function App() {
           item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: minQty }];
     });
   };
 
@@ -295,13 +296,21 @@ export default function App() {
       prev
         .map((item) => {
           if (item.product.id === productId) {
+            const minQty = item.product.minOrderQuantity || 1;
             const newQty = item.quantity + delta;
-            return newQty > 0 ? { ...item, quantity: newQty } : null;
+            // Validate: visitor cannot decrease quantity below min_order_quantity
+            if (newQty < minQty) {
+              return { ...item, quantity: minQty };
+            }
+            return { ...item, quantity: newQty };
           }
           return item;
         })
-        .filter(Boolean) as { product: Product; quantity: number }[]
     );
+  };
+
+  const handleRemoveFromCart = (productId: string) => {
+    setCart((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
   // Mobile Menu
@@ -1204,14 +1213,21 @@ export default function App() {
                               <span className="text-base font-bold text-[#1B2A4A]">
                                 {CURRENCY_SYMBOLS[activeCurrency]}
                                 {price.toLocaleString()}
-                                <span className="text-[10px] font-normal text-gray-500"> / yard</span>
+                                <span className="text-[10px] font-normal text-gray-500">
+                                  {' '}
+                                  / {product.unit === 'yard' ? 'yard' : product.unit === 'set' ? 'set' : 'piece'}
+                                </span>
                               </span>
                               <span
                                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                   product.inStock ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                                 }`}
                               >
-                                {product.inStock ? `${product.stockYards} Yds In Stock` : 'Out of Stock'}
+                                {product.inStock
+                                  ? `${product.stockQuantity ?? (product as any).stockYards ?? 10} ${
+                                      product.unit === 'yard' ? 'Yds' : product.unit === 'set' ? 'Sets' : 'Pcs'
+                                    } In Stock`
+                                  : 'Out of Stock'}
                               </span>
                             </div>
                           </div>
@@ -1222,13 +1238,22 @@ export default function App() {
                             <div className="flex items-center justify-between bg-[#FAFAFA] border border-[#E5E7EB] rounded-xl p-1.5">
                               <button
                                 onClick={() => handleUpdateCartQuantity(product.id, -1)}
-                                className="w-8 h-8 rounded-lg bg-white text-[#1B2A4A] font-bold hover:bg-gray-200 flex items-center justify-center border border-gray-200 cursor-pointer"
+                                disabled={inCartItem.quantity <= (product.minOrderQuantity || 1)}
+                                className="w-8 h-8 rounded-lg bg-white text-[#1B2A4A] font-bold hover:bg-gray-200 disabled:opacity-40 disabled:hover:bg-white flex items-center justify-center border border-gray-200 cursor-pointer"
                               >
                                 -
                               </button>
-                              <span className="text-xs font-bold text-[#1B2A4A]">
-                                {inCartItem.quantity} Yds in Cart
-                              </span>
+                              <div className="text-center">
+                                <span className="text-xs font-bold text-[#1B2A4A] block">
+                                  {inCartItem.quantity}{' '}
+                                  {product.unit === 'yard' ? 'Yds' : product.unit === 'set' ? 'Sets' : 'Pcs'} in Cart
+                                </span>
+                                {(product.minOrderQuantity || 1) > 1 && (
+                                  <span className="text-[9px] text-[#D1B464] block font-semibold">
+                                    (Min: {product.minOrderQuantity})
+                                  </span>
+                                )}
+                              </div>
                               <button
                                 onClick={() => handleUpdateCartQuantity(product.id, 1)}
                                 className="w-8 h-8 rounded-lg bg-[#1B2A4A] text-white font-bold hover:bg-[#23375e] flex items-center justify-center cursor-pointer"

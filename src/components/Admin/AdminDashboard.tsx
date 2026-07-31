@@ -613,6 +613,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     const validatedCategory = normalizeCategory(productData.category);
     const validatedStatus = normalizeStatus(productData.status);
+    const validatedUnit = (['yard', 'piece', 'set'].includes(productData.unit || '') ? productData.unit : 'piece') as any;
+    const validatedMinOrderQty = Math.max(1, Number(productData.minOrderQuantity) || 1);
 
     // 3. Slug generation & Unique Constraint Safe Safeguards
     const rawTitle = productData.title?.trim() || 'Untitled Fabric';
@@ -637,6 +639,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       description: productData.description || '',
       fabric_category: validatedCategory,
       status: validatedStatus,
+      unit: validatedUnit,
+      min_order_quantity: validatedMinOrderQty,
       price_ngn: cleanPriceNgn,
       price_usd: finalPriceUsd,
       price_gbp: finalPriceGbp,
@@ -666,6 +670,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               ...productData,
               category: validatedCategory,
               status: validatedStatus,
+              unit: validatedUnit,
+              minOrderQuantity: validatedMinOrderQty,
               slug: computedSlug,
             } as Product)
           : p
@@ -734,6 +740,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         },
         stockQuantity: stockQty,
         inStock: isStockAvailable,
+        unit: validatedUnit,
+        minOrderQuantity: validatedMinOrderQty,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

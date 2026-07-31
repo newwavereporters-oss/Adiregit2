@@ -33,6 +33,8 @@ export const mapSupabaseProductToProduct = (row: any): Product => {
     },
     stockQuantity: row.stock_quantity ?? row.stockQuantity ?? 10,
     inStock: row.in_stock ?? row.inStock ?? true,
+    unit: (['yard', 'piece', 'set'].includes(row.unit) ? row.unit : 'piece') as any,
+    minOrderQuantity: Number(row.min_order_quantity ?? row.minOrderQuantity ?? 1) || 1,
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
     updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
   };

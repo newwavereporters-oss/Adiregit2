@@ -19,7 +19,9 @@ import {
   Product,
   FabricCategory,
   ProductStatus,
+  ProductUnit,
   FABRIC_CATEGORY_LABELS,
+  PRODUCT_UNIT_LABELS,
   CURRENCY_SYMBOLS,
 } from '../../types/admin';
 
@@ -57,9 +59,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [galleryUrl4, setGalleryUrl4] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
 
-  // Inventory & Stock
+  // Inventory, Units & Stock
   const [stockQuantity, setStockQuantity] = useState<number>(10);
   const [inStock, setInStock] = useState<boolean>(true);
+  const [unit, setUnit] = useState<ProductUnit>('piece');
+  const [minOrderQuantity, setMinOrderQuantity] = useState<number>(1);
   const [allowCoupons, setAllowCoupons] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -108,6 +112,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
       setStockQuantity(productToEdit.stockQuantity);
       setInStock(productToEdit.inStock);
+      setUnit(productToEdit.unit || 'piece');
+      setMinOrderQuantity(productToEdit.minOrderQuantity || 1);
     } else {
       // Default reset for new product
       setTitle('');
@@ -130,6 +136,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
       setStockQuantity(12);
       setInStock(true);
+      setUnit('piece');
+      setMinOrderQuantity(1);
       setAllowCoupons(true);
     }
   }, [productToEdit, isOpen]);
@@ -173,6 +181,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         },
         stockQuantity: Number(stockQuantity) || 0,
         inStock: stockQuantity > 0 ? inStock : false,
+        unit,
+        minOrderQuantity: Math.max(1, Number(minOrderQuantity) || 1),
         updatedAt: new Date().toISOString(),
       };
 
@@ -554,13 +564,45 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             <div className="space-y-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#1B2A4A] pb-2 border-b border-gray-100 flex items-center gap-2">
                 <Package className="w-3.5 h-3.5 text-[#D1B464]" />
-                <span>4. Inventory & Stock Controls</span>
+                <span>4. Inventory, Units & Minimum Quantities</span>
               </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#1A1A1A] mb-1">
+                    Measurement Unit *
+                  </label>
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value as ProductUnit)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#FAFAFA] border border-[#E5E7EB] text-sm text-[#1A1A1A] focus:outline-none focus:border-[#D1B464] focus:bg-white cursor-pointer"
+                  >
+                    <option value="piece">Piece(s)</option>
+                    <option value="yard">Yard(s)</option>
+                    <option value="set">Set(s)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1A1A1A] mb-1">
+                    Minimum Order Quantity (MoQ) *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={minOrderQuantity}
+                    onChange={(e) => setMinOrderQuantity(Math.max(1, Number(e.target.value)))}
+                    placeholder="e.g. 1"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#FAFAFA] border border-[#E5E7EB] text-sm text-[#1A1A1A] focus:outline-none focus:border-[#D1B464] focus:bg-white"
+                  />
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                 <div>
                   <label className="block text-xs font-bold text-[#1A1A1A] mb-1">
-                    Stock Quantity (Yards / Units) *
+                    Stock Quantity ({PRODUCT_UNIT_LABELS[unit]}) *
                   </label>
                   <input
                     type="number"

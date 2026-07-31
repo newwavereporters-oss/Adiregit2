@@ -10,6 +10,14 @@ export type FabricCategory =
 
 export type ProductStatus = 'active' | 'draft' | 'archived';
 
+export type ProductUnit = 'yard' | 'piece' | 'set';
+
+export const PRODUCT_UNIT_LABELS: Record<ProductUnit, string> = {
+  piece: 'Piece(s)',
+  yard: 'Yard(s)',
+  set: 'Set(s)',
+};
+
 export type CurrencyCode = 'NGN' | 'USD' | 'GBP' | 'EUR';
 
 export interface MultiCurrencyPrice {
@@ -36,6 +44,8 @@ export interface Product {
   media: ProductMedia;
   stockQuantity: number;
   inStock: boolean;
+  unit?: ProductUnit;
+  minOrderQuantity?: number;
   createdAt: string;
   updatedAt: string;
 }
