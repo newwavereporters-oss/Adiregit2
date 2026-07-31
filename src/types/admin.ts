@@ -1,5 +1,6 @@
 export type FabricCategory =
   | 'adire_cotton'
+  | 'adire_silk'
   | 'adire_tshirts'
   | 'adire_crepe'
   | 'adire_chiffon'
@@ -136,6 +137,7 @@ export interface ExchangeRates {
 
 export const FABRIC_CATEGORY_LABELS: Record<FabricCategory, string> = {
   adire_cotton: 'Adire Cotton (Classic)',
+  adire_silk: 'Adire Silk (Luxe)',
   adire_tshirts: 'Adire T-Shirts (Streetwear)',
   adire_crepe: 'Adire Crepe (Evening)',
   adire_chiffon: 'Adire Chiffon (Sheer)',

@@ -590,11 +590,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (!cat) return 'adire_cotton';
       const clean = cat.toLowerCase().trim();
       if (clean.includes('tshirt') || clean.includes('t-shirt')) return 'adire_tshirts';
+      if (clean.includes('silk')) return 'adire_silk';
       if (clean.includes('crepe')) return 'adire_crepe';
       if (clean.includes('chiffon')) return 'adire_chiffon';
       if (clean.includes('rayon')) return 'adire_rayon';
       if (clean.includes('viscose')) return 'adire_viscose';
       if (clean.includes('ibile')) return 'ibile';
+      if (clean.includes('cotton')) return 'adire_cotton';
+      if (['adire_cotton', 'adire_silk', 'adire_chiffon', 'adire_crepe', 'adire_rayon', 'adire_viscose', 'adire_tshirts', 'ibile'].includes(clean)) {
+        return clean as FabricCategory;
+      }
       return 'adire_cotton';
     };
 
@@ -631,7 +636,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       slug: computedSlug,
       description: productData.description || '',
       fabric_category: validatedCategory,
-      category: validatedCategory,
       status: validatedStatus,
       price_ngn: cleanPriceNgn,
       price_usd: finalPriceUsd,
