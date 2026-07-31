@@ -64,6 +64,7 @@ import {
 } from '../../data/mockData';
 import { ProductModal } from './ProductModal';
 import { supabase, isSupabaseConfigured, testSupabaseConnection } from '../../lib/supabase';
+import { mapSupabaseProductToProduct } from '../../utils/productMapper';
 
 interface AdminDashboardProps {
   currentUser: AdminUser;
@@ -87,31 +88,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>('USD');
   const currencySymbol = CURRENCY_SYMBOLS[activeCurrency];
 
-  // DATA STATES WITH PERSISTENCE & SUPABASE SYNC
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('dsp_admin_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
+  // DATA STATES WITH SUPABASE SYNC (Clean Slate)
+  const [products, setProducts] = useState<Product[]>([]);
 
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const saved = localStorage.getItem('dsp_admin_leads');
-    return saved ? JSON.parse(saved) : INITIAL_LEADS;
-  });
+  const [leads, setLeads] = useState<Lead[]>([]);
 
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('dsp_admin_orders');
-    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
 
-  const [shippingLocations, setShippingLocations] = useState<ShippingLocation[]>(() => {
-    const saved = localStorage.getItem('dsp_admin_shipping');
-    return saved ? JSON.parse(saved) : INITIAL_SHIPPING_LOCATIONS;
-  });
+  const [shippingLocations, setShippingLocations] = useState<ShippingLocation[]>(INITIAL_SHIPPING_LOCATIONS);
 
-  const [coupons, setCoupons] = useState<Coupon[]>(() => {
-    const saved = localStorage.getItem('dsp_admin_coupons');
-    return saved ? JSON.parse(saved) : INITIAL_COUPONS;
-  });
+  const [coupons, setCoupons] = useState<Coupon[]>(INITIAL_COUPONS);
 
   // MODAL STATES
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -150,7 +136,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // SUPABASE CONNECTION STATUS
   const [supabaseStatus, setSupabaseStatus] = useState<{ success: boolean; message: string }>({
     success: isSupabaseConfigured,
-    message: isSupabaseConfigured ? 'Connected' : 'Local Persistence Active',
+    message: isSupabaseConfigured ? 'Connected to Supabase Live Database' : 'Supabase Not Configured',
   });
 
   // TOAST ALERTS
@@ -161,175 +147,203 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // SAVE LOCAL PERSISTENCE
+  // PURGE LEGACY LOCAL STORAGE PRODUCT CACHE ON MOUNT
   useEffect(() => {
-    localStorage.setItem('dsp_admin_products', JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('dsp_admin_leads', JSON.stringify(leads));
-  }, [leads]);
-
-  useEffect(() => {
-    localStorage.setItem('dsp_admin_orders', JSON.stringify(orders));
-  }, [orders]);
-
-  useEffect(() => {
-    localStorage.setItem('dsp_admin_shipping', JSON.stringify(shippingLocations));
-  }, [shippingLocations]);
-
-  useEffect(() => {
-    localStorage.setItem('dsp_admin_coupons', JSON.stringify(coupons));
-  }, [coupons]);
+    try {
+      localStorage.removeItem('dsp_admin_products');
+      localStorage.removeItem('dsp_admin_orders');
+    } catch (_) {}
+  }, []);
 
   // CHECK SUPABASE CONNECTION ON MOUNT
   useEffect(() => {
     testSupabaseConnection().then((res) => setSupabaseStatus(res));
   }, []);
 
-  // SUPABASE HELPER TO MAP ROW TO PRODUCT
-  const mapSupabaseProductToProduct = (row: any): Product => {
-    const rawNgn = Number(String(row.price_ngn ?? row.prices?.ngn ?? 0).replace(/[^0-9.]/g, '')) || 0;
-    const computedUsd = Number(row.price_usd) || (row.prices?.usd ? Number(row.prices.usd) : Math.round((rawNgn / 1600) * 100) / 100);
-    const computedGbp = Number(row.price_gbp) || (row.prices?.gbp ? Number(row.prices.gbp) : Math.round((rawNgn / 1900) * 100) / 100);
-    const computedEur = Number(row.price_eur) || (row.prices?.eur ? Number(row.prices.eur) : Math.round((rawNgn / 1650) * 100) / 100);
-
-    const galleryList = [
-      row.gallery_image_url_1,
-      row.gallery_image_url_2,
-      row.gallery_image_url_3,
-      row.gallery_image_url_4,
-    ].filter(Boolean);
-
-    return {
-      id: row.id || `dsp-prod-${Date.now()}`,
-      title: row.title || 'Untitled Fabric',
-      slug: row.slug || (row.title ? row.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'fabric'),
-      description: row.description || '',
-      category: row.fabric_category || row.category || 'adire_cotton',
-      status: row.status || 'active',
-      prices: {
-        ngn: rawNgn,
-        usd: computedUsd,
-        gbp: computedGbp,
-        eur: computedEur,
-      },
-      media: {
-        primaryUrl: row.primary_image_url || row.primaryUrl || '/src/assets/images/adire_hero_fashion_1785421009712.jpg',
-        galleryUrls: galleryList.length > 0 ? galleryList : (row.gallery_urls || row.media?.galleryUrls || []),
-        videoUrl: row.video_url || row.videoUrl || undefined,
-      },
-      stockQuantity: row.stock_quantity ?? row.stockQuantity ?? 10,
-      inStock: row.in_stock ?? row.inStock ?? true,
-      createdAt: row.created_at || row.createdAt || new Date().toISOString(),
-      updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
-    };
+  // CLEAR ALL PRODUCTS FROM SUPABASE & STATE (Clean Slate Handler)
+  const handleClearAllProducts = async () => {
+    if (
+      window.confirm(
+        'Are you sure you want to delete ALL products from Supabase and clear the catalog? This will create a 100% clean slate.'
+      )
+    ) {
+      setProducts([]);
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) {
+          console.error('Error clearing products in Supabase:', error);
+          showToast(`Failed to clear in Supabase: ${error.message}`);
+        } else {
+          showToast('All products deleted from Supabase! Clean slate active.');
+        }
+      } else {
+        showToast('All products cleared locally.');
+      }
+    }
   };
 
-  // FETCH SUPABASE DATA IF CONFIGURED
+  // FETCH & REALTIME SYNC SUPABASE DATA ACROSS DEVICES
   useEffect(() => {
+    const loadAllSupabaseData = async () => {
+      if (isSupabaseConfigured && supabase) {
+        // Products
+        const { data: pData, error: pErr } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (pData && !pErr) {
+          setProducts(pData.map(mapSupabaseProductToProduct));
+        } else if (!pErr) {
+          setProducts([]);
+        }
+
+        // Leads
+        const { data: lData } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (lData) setLeads(lData as Lead[]);
+
+        // Orders
+        const { data: oData } = await supabase
+          .from('orders')
+          .select('*, items:order_items(*)')
+          .order('created_at', { ascending: false });
+
+        if (oData) {
+          const formatted: Order[] = oData.map((o) => ({
+            id: o.id,
+            orderNumber: o.order_number,
+            customerName: o.customer_name,
+            customerEmail: o.customer_email,
+            customerPhone: o.customer_phone,
+            shippingAddress: o.shipping_address,
+            shippingCity: o.shipping_city,
+            shippingState: o.shipping_state,
+            shippingCountry: o.shipping_country,
+            shippingLocationId: o.shipping_location_id,
+            shippingLocationName: o.shipping_location_name,
+            shippingFee: Number(o.shipping_fee || 0),
+            subtotalAmount: Number(o.subtotal_amount || 0),
+            discountAmount: Number(o.discount_amount || 0),
+            totalAmount: Number(o.total_amount || 0),
+            currency: o.currency || 'USD',
+            paymentStatus: o.payment_status || 'paid',
+            status: o.status || 'pending',
+            couponCode: o.coupon_code,
+            adminNotes: o.admin_notes,
+            createdAt: o.created_at,
+            items: (o.items || []).map((it: any) => ({
+              id: it.id,
+              productId: it.product_id,
+              productTitle: it.product_title,
+              productImage: it.product_image,
+              quantity: it.quantity,
+              unitPrice: Number(it.unit_price),
+              totalPrice: Number(it.total_price),
+            })),
+          }));
+          setOrders(formatted);
+        }
+        // Shipping Locations
+        const { data: sData } = await supabase.from('shipping_locations').select('*');
+        if (sData && sData.length > 0) {
+          const formatted: ShippingLocation[] = sData.map((loc) => ({
+            id: loc.id,
+            name: loc.name,
+            country: loc.country,
+            timeframe: loc.timeframe,
+            rates: loc.rates || { ngn: 5000, usd: 10, gbp: 8, eur: 9 },
+            isActive: loc.is_active ?? true,
+            createdAt: loc.created_at,
+          }));
+          setShippingLocations(formatted);
+        }
+
+        // Coupons
+        const { data: cData } = await supabase.from('coupons').select('*');
+        if (cData && cData.length > 0) {
+          const formatted: Coupon[] = cData.map((c) => ({
+            id: c.id,
+            code: c.code,
+            discountPercent: c.discount_percent,
+            leadEmail: c.lead_email,
+            usageCount: c.usage_count || 0,
+            maxUses: c.max_uses,
+            isActive: c.is_active ?? true,
+            createdAt: c.created_at,
+          }));
+          setCoupons(formatted);
+        }
+      }
+    };
+
+    loadAllSupabaseData();
+
+    // Supabase Realtime Channel
+    let channel: any = null;
     if (isSupabaseConfigured && supabase) {
-      // Products
-      supabase
-        .from('products')
-        .select('*')
-        .then(({ data, error }) => {
-          if (data && data.length > 0 && !error) {
-            setProducts(data.map(mapSupabaseProductToProduct));
+      channel = supabase
+        .channel('admin_live_data')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'products' },
+          async () => {
+            const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+            if (data) setProducts(data.map(mapSupabaseProductToProduct));
           }
-        });
-
-      // Leads
-      supabase
-        .from('leads')
-        .select('*')
-        .then(({ data, error }) => {
-          if (data && data.length > 0 && !error) setLeads(data as Lead[]);
-        });
-
-      // Orders with Order Items
-      supabase
-        .from('orders')
-        .select('*, items:order_items(*)')
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (data && data.length > 0 && !error) {
-            const formatted: Order[] = data.map((o) => ({
-              id: o.id,
-              orderNumber: o.order_number,
-              customerName: o.customer_name,
-              customerEmail: o.customer_email,
-              customerPhone: o.customer_phone,
-              shippingAddress: o.shipping_address,
-              shippingCity: o.shipping_city,
-              shippingState: o.shipping_state,
-              shippingCountry: o.shipping_country,
-              shippingLocationId: o.shipping_location_id,
-              shippingLocationName: o.shipping_location_name,
-              shippingFee: Number(o.shipping_fee || 0),
-              subtotalAmount: Number(o.subtotal_amount || 0),
-              discountAmount: Number(o.discount_amount || 0),
-              totalAmount: Number(o.total_amount || 0),
-              currency: o.currency || 'USD',
-              paymentStatus: o.payment_status || 'paid',
-              status: o.status || 'pending',
-              couponCode: o.coupon_code,
-              adminNotes: o.admin_notes,
-              createdAt: o.created_at,
-              items: (o.items || []).map((it: any) => ({
-                id: it.id,
-                orderId: it.order_id,
-                productId: it.product_id,
-                productTitle: it.product_title,
-                productImage: it.product_image,
-                quantity: it.quantity,
-                unitPrice: Number(it.unit_price),
-                totalPrice: Number(it.total_price),
-              })),
-            }));
-            setOrders(formatted);
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'orders' },
+          async () => {
+            const { data } = await supabase.from('orders').select('*, items:order_items(*)').order('created_at', { ascending: false });
+            if (data) {
+              const formatted: Order[] = data.map((o) => ({
+                id: o.id,
+                orderNumber: o.order_number,
+                customerName: o.customer_name,
+                customerEmail: o.customer_email,
+                customerPhone: o.customer_phone,
+                shippingAddress: o.shipping_address,
+                shippingCity: o.shipping_city,
+                shippingState: o.shipping_state,
+                shippingCountry: o.shipping_country,
+                shippingLocationId: o.shipping_location_id,
+                shippingLocationName: o.shipping_location_name,
+                shippingFee: Number(o.shipping_fee || 0),
+                subtotalAmount: Number(o.subtotal_amount || 0),
+                discountAmount: Number(o.discount_amount || 0),
+                totalAmount: Number(o.total_amount || 0),
+                currency: o.currency || 'USD',
+                paymentStatus: o.payment_status || 'paid',
+                status: o.status || 'pending',
+                couponCode: o.coupon_code,
+                adminNotes: o.admin_notes,
+                createdAt: o.created_at,
+                items: (o.items || []).map((it: any) => ({
+                  id: it.id,
+                  productId: it.product_id,
+                  productTitle: it.product_title,
+                  productImage: it.product_image,
+                  quantity: it.quantity,
+                  unitPrice: Number(it.unit_price),
+                  totalPrice: Number(it.total_price),
+                })),
+              }));
+              setOrders(formatted);
+            }
           }
-        });
-
-      // Shipping Locations
-      supabase
-        .from('shipping_locations')
-        .select('*')
-        .then(({ data, error }) => {
-          if (data && data.length > 0 && !error) {
-            const formatted: ShippingLocation[] = data.map((loc) => ({
-              id: loc.id,
-              name: loc.name,
-              country: loc.country,
-              timeframe: loc.timeframe,
-              rates: loc.rates || { ngn: 5000, usd: 10, gbp: 8, eur: 9 },
-              isActive: loc.is_active ?? true,
-              createdAt: loc.created_at,
-            }));
-            setShippingLocations(formatted);
-          }
-        });
-
-      // Coupons
-      supabase
-        .from('coupons')
-        .select('*')
-        .then(({ data, error }) => {
-          if (data && data.length > 0 && !error) {
-            const formatted: Coupon[] = data.map((c) => ({
-              id: c.id,
-              code: c.code,
-              discountPercent: c.discount_percent,
-              leadEmail: c.lead_email,
-              usageCount: c.usage_count || 0,
-              maxUses: c.max_uses,
-              isActive: c.is_active ?? true,
-              createdAt: c.created_at,
-            }));
-            setCoupons(formatted);
-          }
-        });
+        )
+        .subscribe();
     }
+
+    return () => {
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   // --- TAB A: ORDERS HANDLERS ---
@@ -1707,16 +1721,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </p>
                 </div>
 
-                <button
-                  onClick={() => {
-                    setProductToEdit(null);
-                    setIsProductModalOpen(true);
-                  }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1B2A4A] text-white font-bold text-xs uppercase tracking-wider hover:bg-[#121E36] transition-colors cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 text-[#D1B464]" />
-                  <span>Add New Fabric Product</span>
-                </button>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {products.length > 0 && (
+                    <button
+                      onClick={handleClearAllProducts}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                      title="Delete all demo products and start clean slate"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                      <span className="hidden sm:inline">Clear All Slate</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setProductToEdit(null);
+                      setIsProductModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1B2A4A] text-white font-bold text-xs uppercase tracking-wider hover:bg-[#121E36] transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-4 h-4 text-[#D1B464]" />
+                    <span>Add New Fabric Product</span>
+                  </button>
+                </div>
               </div>
 
               {/* Filters */}
@@ -1746,9 +1773,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </select>
               </div>
 
-              {/* Products Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((p) => {
+              {/* Products Grid or Clean Slate View */}
+              {filteredProducts.length === 0 ? (
+                <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border-2 border-dashed border-gray-200 my-4 space-y-4 max-w-lg mx-auto">
+                  <div className="w-16 h-16 rounded-full bg-[#1B2A4A]/5 border border-[#1B2A4A]/10 flex items-center justify-center mx-auto text-[#1B2A4A]">
+                    <Package className="w-8 h-8 text-[#D1B464]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-serif-title text-xl font-bold text-[#1B2A4A]">
+                      Clean Slate — No Products
+                    </h3>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      All demo products cleared! Click below to add a new product. It will save directly to Supabase and publish live across both desktop and mobile immediately.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setProductToEdit(null);
+                      setIsProductModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#1B2A4A] text-white font-bold text-xs uppercase tracking-wider hover:bg-[#121E36] transition-all shadow-md cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 text-[#D1B464]" />
+                    <span>Add New Fabric Product</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredProducts.map((p) => {
                   const activePrice = p.prices[activeCurrency.toLowerCase() as keyof MultiCurrencyPrice] || p.prices.usd;
 
                   return (
@@ -1818,8 +1870,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
           {/* -------------------------------------------------------------
               TAB E: LEADS CRM ("Leads")

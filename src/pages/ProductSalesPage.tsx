@@ -36,6 +36,7 @@ import {
 } from '../types/admin';
 import { INITIAL_PRODUCTS, INITIAL_SHIPPING_LOCATIONS, INITIAL_COUPONS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { mapSupabaseProductToProduct } from '../utils/productMapper';
 import {
   convertFromNGN,
   formatCurrencyValue,
@@ -92,69 +93,31 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState<boolean>(false);
 
-  // Load product & shipping locations
+  // Load product & shipping locations directly from Supabase
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
-      // 1. Load Product
-      try {
-        if (isSupabaseConfigured && supabase) {
-          const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('slug', slug)
-            .single();
+      // 1. Load Product from Supabase
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .or(`slug.eq.${slug},id.eq.${slug}`)
+          .maybeSingle();
 
-          if (!error && data) {
-            const mappedProduct: Product = {
-              id: data.id,
-              title: data.title,
-              slug: data.slug || slug,
-              description: data.description || '',
-              category: data.category || 'adire_cotton',
-              status: data.status || 'active',
-              prices: data.prices || {
-                ngn: data.price_ngn || 250000,
-                usd: data.price_usd || 156,
-                gbp: data.price_gbp || 131,
-                eur: data.price_eur || 151,
-              },
-              media: data.media || {
-                primaryUrl: data.primary_image_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-                galleryUrls: data.gallery_urls || [],
-                videoUrl: data.video_url || '',
-              },
-              stockQuantity: data.stock_quantity ?? 10,
-              inStock: data.in_stock ?? true,
-              createdAt: data.created_at || new Date().toISOString(),
-              updatedAt: data.updated_at || new Date().toISOString(),
-            };
-            if (isMounted) {
-              setProduct(mappedProduct);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Supabase product fetch fallback:', err);
-      }
-
-      // Fallback local products lookup
-      if (!product) {
-        const saved = localStorage.getItem('dsp_admin_products');
-        let found: Product | undefined;
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            found = parsed.find((p: Product) => p.slug === slug || p.id === slug);
-          } catch (e) {
-            // ignore
-          }
-        }
-        if (!found) {
-          found = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug) || INITIAL_PRODUCTS[0];
-        }
         if (isMounted) {
-          setProduct(found);
+          if (!error && data) {
+            setProduct(mapSupabaseProductToProduct(data));
+          } else {
+            // Check fallback if needed
+            const found = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
+            setProduct(found || null);
+          }
+        }
+      } else {
+        if (isMounted) {
+          const found = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
+          setProduct(found || null);
         }
       }
 

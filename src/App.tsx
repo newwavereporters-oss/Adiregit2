@@ -35,6 +35,7 @@ import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { detectUserCurrency, saveUserCurrencyPreference } from './utils/geoIp';
 import { CurrencyDropdown } from './components/CurrencyDropdown';
 import { FloatingTrackOrderCard } from './components/FloatingTrackOrderCard';
+import { mapSupabaseProductToProduct } from './utils/productMapper';
 
 // IMAGE ASSETS
 const HERO_IMAGE = '/src/assets/images/adire_hero_fashion_1785421009712.jpg';
@@ -224,26 +225,55 @@ export default function App() {
     saveUserCurrencyPreference(newCurrency);
   };
 
-  const [storefrontProducts, setStorefrontProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('dsp_admin_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
+  const [storefrontProducts, setStorefrontProducts] = useState<Product[]>([]);
 
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
 
-  // Sync Storefront Products with Supabase
+  // Sync Storefront Products Live with Supabase across Desktop & Mobile
   useEffect(() => {
+    // Purge legacy local storage products cache
+    try {
+      localStorage.removeItem('dsp_admin_products');
+    } catch (_) {}
+
+    const fetchLiveProducts = async () => {
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
+
+        if (data && !error) {
+          setStorefrontProducts(data.map(mapSupabaseProductToProduct));
+        } else if (!error) {
+          setStorefrontProducts([]);
+        }
+      }
+    };
+
+    fetchLiveProducts();
+
+    // Supabase Realtime Channel for instant live updates across devices
+    let channel: any = null;
     if (isSupabaseConfigured && supabase) {
-      supabase
-        .from('products')
-        .select('*')
-        .eq('status', 'active')
-        .then(({ data, error }) => {
-          if (data && data.length > 0 && !error) {
-            setStorefrontProducts(data as Product[]);
+      channel = supabase
+        .channel('storefront_products_sync')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'products' },
+          () => {
+            fetchLiveProducts();
           }
-        });
+        )
+        .subscribe();
     }
+
+    return () => {
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   const handleAddToCart = (product: Product) => {

@@ -19,6 +19,7 @@ import {
 import { Product, CurrencyCode, FabricCategory, FABRIC_CATEGORY_LABELS, CURRENCY_SYMBOLS } from '../types/admin';
 import { INITIAL_PRODUCTS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { mapSupabaseProductToProduct } from '../utils/productMapper';
 import { convertFromNGN, formatCurrencyValue } from '../utils/currencyAndBank';
 import { OrderStatusModal } from '../components/OrderStatusModal';
 import { CurrencyDropdown } from '../components/CurrencyDropdown';
@@ -46,95 +47,62 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState<boolean>(false);
 
-  // Fetch active products from Supabase or fallback
+  // Fetch active products from Supabase and subscribe to live changes
   useEffect(() => {
     let isMounted = true;
-    async function loadProducts() {
-      try {
-        if (isSupabaseConfigured && supabase) {
-          const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('status', 'active')
-            .order('created_at', { ascending: false });
 
-          if (!error && data && data.length > 0) {
-            // Map database rows smoothly
-            const mapped: Product[] = data.map((item: any) => {
-              const rawNgn = Number(String(item.price_ngn ?? item.prices?.ngn ?? 250000).replace(/[^0-9.]/g, '')) || 0;
-              const computedUsd = Number(item.price_usd) || (item.prices?.usd ? Number(item.prices.usd) : Math.round((rawNgn / 1600) * 100) / 100);
-              const computedGbp = Number(item.price_gbp) || (item.prices?.gbp ? Number(item.prices.gbp) : Math.round((rawNgn / 1900) * 100) / 100);
-              const computedEur = Number(item.price_eur) || (item.prices?.eur ? Number(item.prices.eur) : Math.round((rawNgn / 1650) * 100) / 100);
+    async function fetchStorefrontProducts() {
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
 
-              const galleryList = [
-                item.gallery_image_url_1,
-                item.gallery_image_url_2,
-                item.gallery_image_url_3,
-                item.gallery_image_url_4,
-              ].filter(Boolean);
-
-              const galleryUrls = galleryList.length > 0 ? galleryList : (item.gallery_urls || item.media?.galleryUrls || []);
-
-              return {
-                id: item.id || `dsp-prod-${Date.now()}`,
-                title: item.title,
-                slug: item.slug || item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                description: item.description || '',
-                category: item.fabric_category || item.category || 'adire_cotton',
-                status: item.status || 'active',
-                prices: {
-                  ngn: rawNgn,
-                  usd: computedUsd,
-                  gbp: computedGbp,
-                  eur: computedEur,
-                },
-                media: {
-                  primaryUrl: item.primary_image_url || item.media?.primaryUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
-                  galleryUrls,
-                  videoUrl: item.video_url || item.media?.videoUrl || '',
-                },
-                stockQuantity: item.stock_quantity ?? item.stockQuantity ?? 10,
-                inStock: item.in_stock ?? item.inStock ?? true,
-                createdAt: item.created_at || new Date().toISOString(),
-                updatedAt: item.updated_at || new Date().toISOString(),
-              };
-            });
-            if (isMounted) {
-              setProducts(mapped);
-              setLoading(false);
-              return;
-            }
+        if (isMounted) {
+          if (!error && data) {
+            setProducts(data.map(mapSupabaseProductToProduct));
+          } else {
+            setProducts([]);
           }
+          setLoading(false);
         }
-      } catch (err) {
-        console.warn('Supabase fetch failed, utilizing local sync dataset:', err);
-      }
-
-      // Local storage or mock fallback
-      const saved = localStorage.getItem('dsp_admin_products');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          const activeOnly = parsed.filter((p: Product) => p.status === 'active');
-          if (isMounted) {
-            setProducts(activeOnly.length > 0 ? activeOnly : INITIAL_PRODUCTS.filter((p) => p.status === 'active'));
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          // ignore error
+      } else {
+        if (isMounted) {
+          setProducts([]);
+          setLoading(false);
         }
-      }
-
-      if (isMounted) {
-        setProducts(INITIAL_PRODUCTS.filter((p) => p.status === 'active'));
-        setLoading(false);
       }
     }
 
-    loadProducts();
+    fetchStorefrontProducts();
+
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      channel = supabase
+        .channel('shoppage_products_live')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'products' },
+          async () => {
+            const { data } = await supabase
+              .from('products')
+              .select('*')
+              .eq('status', 'active')
+              .order('created_at', { ascending: false });
+            if (isMounted && data) {
+              setProducts(data.map(mapSupabaseProductToProduct));
+            }
+          }
+        )
+        .subscribe();
+    }
+
     return () => {
       isMounted = false;
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
