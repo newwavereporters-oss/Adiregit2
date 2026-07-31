@@ -653,8 +653,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       updated_at: new Date().toISOString(),
     };
 
-    if (productToEdit) {
-      // UPDATE EXISTING PRODUCT
+    const isUuid = productToEdit?.id
+      ? /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(productToEdit.id)
+      : false;
+
+    if (productToEdit && isUuid) {
+      // UPDATE EXISTING REAL SUPABASE PRODUCT
       const updatedProducts = products.map((p) =>
         p.id === productToEdit.id
           ? ({
@@ -708,7 +712,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         showToast(`Product "${rawTitle}" updated locally!`);
       }
     } else {
-      // CREATE NEW PRODUCT
+      // CREATE NEW PRODUCT OR INSERT MOCK PRODUCT TO SUPABASE
       const newId = `dsp-prod-${Date.now()}`;
       const newProduct: Product = {
         id: newId,
@@ -737,12 +741,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setProducts([newProduct, ...products]);
 
       if (isSupabaseConfigured && supabase) {
-        const createPayload = {
-          id: newId,
+        // 1. Destructure and EXCLUDE 'id' property so Supabase natively generates UUIDs
+        const { id: _excludedId, ...cleanPayload } = payload as Record<string, any>;
+
+        // 2. Build explicit create payload guaranteed without any 'id' key
+        const createPayload: Record<string, any> = {
           created_at: new Date().toISOString(),
-          ...payload,
+          ...cleanPayload,
         };
 
+        // 3. Direct insert to Supabase
         let { data, error } = await supabase
           .from('products')
           .insert([createPayload])
@@ -792,7 +800,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
       setProducts(products.filter((p) => p.id !== id));
 
-      if (isSupabaseConfigured && supabase) {
+      const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+      if (isSupabaseConfigured && supabase && isUuid) {
         const { error } = await supabase.from('products').delete().eq('id', id);
         if (error) {
           console.error('Supabase Error deleting product:', error.message);
