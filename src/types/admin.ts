@@ -48,6 +48,22 @@ export interface Product {
   minOrderQuantity?: number;
   createdAt: string;
   updatedAt: string;
+  specialImages?: (string | null)[];
+  special_image_1?: string | null;
+  special_image_2?: string | null;
+  special_image_3?: string | null;
+  special_image_4?: string | null;
+  special_image_5?: string | null;
+  special_image_6?: string | null;
+  special_image_7?: string | null;
+  special_image_8?: string | null;
+  special_image_9?: string | null;
+  special_image_10?: string | null;
+  special_image_11?: string | null;
+  special_image_12?: string | null;
+  special_image_13?: string | null;
+  special_image_14?: string | null;
+  special_image_15?: string | null;
 }
 
 export interface Lead {

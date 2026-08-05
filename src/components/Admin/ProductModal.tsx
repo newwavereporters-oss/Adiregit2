@@ -59,6 +59,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [galleryUrl4, setGalleryUrl4] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
 
+  // 15 Special Images (Style Gallery)
+  const [specialImages, setSpecialImages] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (let i = 1; i <= 15; i++) {
+      init[`special_image_${i}`] = '';
+    }
+    return init;
+  });
+
   // Inventory, Units & Stock
   const [stockQuantity, setStockQuantity] = useState<number>(10);
   const [inStock, setInStock] = useState<boolean>(true);
@@ -114,6 +123,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setInStock(productToEdit.inStock);
       setUnit(productToEdit.unit || 'piece');
       setMinOrderQuantity(productToEdit.minOrderQuantity || 1);
+
+      const loadedSpecials: Record<string, string> = {};
+      for (let i = 1; i <= 15; i++) {
+        const key = `special_image_${i}` as keyof Product;
+        loadedSpecials[`special_image_${i}`] = (productToEdit[key] as string) || '';
+      }
+      setSpecialImages(loadedSpecials);
     } else {
       // Default reset for new product
       setTitle('');
@@ -139,6 +155,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setUnit('piece');
       setMinOrderQuantity(1);
       setAllowCoupons(true);
+
+      const emptySpecials: Record<string, string> = {};
+      for (let i = 1; i <= 15; i++) {
+        emptySpecials[`special_image_${i}`] = '';
+      }
+      setSpecialImages(emptySpecials);
     }
   }, [productToEdit, isOpen]);
 
@@ -162,6 +184,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '');
 
+      const specialImagesPayload: Record<string, string | null> = {};
+      for (let i = 1; i <= 15; i++) {
+        const rawVal = specialImages[`special_image_${i}`];
+        specialImagesPayload[`special_image_${i}`] =
+          rawVal && rawVal.trim() !== '' ? rawVal.trim() : null;
+      }
+
       const productPayload: Partial<Product> = {
         title,
         slug: autoSlug,
@@ -184,6 +213,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         unit,
         minOrderQuantity: Math.max(1, Number(minOrderQuantity) || 1),
         updatedAt: new Date().toISOString(),
+        ...specialImagesPayload,
       };
 
       await onSave(productPayload);
@@ -558,6 +588,48 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* 15 SPECIAL IMAGES (STYLE GALLERY) */}
+              <div className="pt-4 border-t border-gray-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#1B2A4A] uppercase tracking-wider block">
+                    Style Gallery (15 Optional Special Images)
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-semibold">
+                    special_image_1 to special_image_15
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => {
+                    const key = `special_image_${num}`;
+                    const val = specialImages[key] || '';
+                    return (
+                      <div key={key} className="p-2.5 bg-[#FAFAFA] rounded-xl border border-[#E5E7EB] space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between">
+                          <span>Style Image {num}</span>
+                          {val.trim() !== '' && (
+                            <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded font-bold">
+                              URL Set
+                            </span>
+                          )}
+                        </label>
+                        <input
+                          type="url"
+                          value={val}
+                          onChange={(e) =>
+                            setSpecialImages((prev) => ({
+                              ...prev,
+                              [key]: e.target.value,
+                            }))
+                          }
+                          placeholder={`https://.../style-${num}.jpg`}
+                          className="w-full px-3 py-1.5 bg-white rounded-lg border border-[#E5E7EB] text-xs font-mono outline-none focus:border-[#D1B464]"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* SECTION 4: Inventory & Stock */}
@@ -667,3 +739,5 @@ export const ProductModal: React.FC<ProductModalProps> = ({
     </AnimatePresence>
   );
 };
+
+export default ProductModal;

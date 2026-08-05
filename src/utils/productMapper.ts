@@ -13,6 +13,24 @@ export const mapSupabaseProductToProduct = (row: any): Product => {
     row.gallery_image_url_4,
   ].filter(Boolean);
 
+  const specialImages = [
+    row.special_image_1,
+    row.special_image_2,
+    row.special_image_3,
+    row.special_image_4,
+    row.special_image_5,
+    row.special_image_6,
+    row.special_image_7,
+    row.special_image_8,
+    row.special_image_9,
+    row.special_image_10,
+    row.special_image_11,
+    row.special_image_12,
+    row.special_image_13,
+    row.special_image_14,
+    row.special_image_15,
+  ];
+
   return {
     id: row.id || `dsp-prod-${Date.now()}`,
     title: row.title || 'Untitled Fabric',
@@ -37,5 +55,21 @@ export const mapSupabaseProductToProduct = (row: any): Product => {
     minOrderQuantity: Number(row.min_order_quantity ?? row.minOrderQuantity ?? 1) || 1,
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
     updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+    specialImages,
+    special_image_1: row.special_image_1 || null,
+    special_image_2: row.special_image_2 || null,
+    special_image_3: row.special_image_3 || null,
+    special_image_4: row.special_image_4 || null,
+    special_image_5: row.special_image_5 || null,
+    special_image_6: row.special_image_6 || null,
+    special_image_7: row.special_image_7 || null,
+    special_image_8: row.special_image_8 || null,
+    special_image_9: row.special_image_9 || null,
+    special_image_10: row.special_image_10 || null,
+    special_image_11: row.special_image_11 || null,
+    special_image_12: row.special_image_12 || null,
+    special_image_13: row.special_image_13 || null,
+    special_image_14: row.special_image_14 || null,
+    special_image_15: row.special_image_15 || null,
   };
 };

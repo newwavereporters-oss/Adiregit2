@@ -370,3 +370,5 @@ export function PaymentStatusBadge({ status }: PaymentStatusBadgeProps) {
     </div>
   );
 }
+
+export default OrderStatusBadge;

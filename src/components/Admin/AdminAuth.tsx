@@ -506,3 +506,5 @@ export const AdminAuth: React.FC<AdminAuthProps> = ({
     </div>
   );
 };
+
+export default AdminAuth;
