@@ -412,34 +412,57 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
     // Save to Supabase
     try {
       if (isSupabaseConfigured && supabase) {
-        await supabase.from('orders').insert([
-          {
-            order_number: generatedOrderNumber,
-            customer_name: buyerName,
-            customer_email: buyerEmail,
-            customer_phone: buyerPhone,
-            shipping_address: buyerAddress,
-            shipping_city: buyerCity || 'Lagos',
-            shipping_state: activeShippingLoc?.state_region || activeShippingLoc?.name || buyerCity || 'Lagos',
-            shipping_country: activeShippingLoc?.country || 'Nigeria',
-            shipping_location_id: activeShippingLoc?.id,
-            shipping_location_name: activeShippingLoc?.state_region || activeShippingLoc?.name || 'Standard Courier',
-            shipping_fee: shippingFeeInCurrency,
-            shipping_cost: shippingFeeInCurrency,
-            notes: newOrderRecord.adminNotes || '',
-            subtotal: subtotalBeforeDiscounts,
-            subtotal_amount: subtotalBeforeDiscounts,
-            discount_amount: totalDiscountAmount,
-            total_amount: grandTotal,
-            currency: activeCurrency,
-            items: orderItemsPayload,
-            payment_status: 'unpaid',
-            order_status: 'pending',
-            status: 'pending',
-            coupon_code: appliedCoupon?.code || null,
-            admin_notes: newOrderRecord.adminNotes,
-          },
-        ]);
+        const { data: createdOrder, error: orderErr } = await supabase
+          .from('orders')
+          .insert([
+            {
+              order_number: generatedOrderNumber,
+              customer_name: buyerName,
+              customer_email: buyerEmail,
+              customer_phone: buyerPhone,
+              shipping_address: buyerAddress,
+              shipping_city: buyerCity || 'Lagos',
+              shipping_state: activeShippingLoc?.state_region || activeShippingLoc?.name || buyerCity || 'Lagos',
+              shipping_country: activeShippingLoc?.country || 'Nigeria',
+              shipping_location_id: activeShippingLoc?.id || null,
+              shipping_location_name: activeShippingLoc?.state_region || activeShippingLoc?.name || 'Standard Courier',
+              shipping_fee: shippingFeeInCurrency,
+              shipping_cost: shippingFeeInCurrency,
+              notes: newOrderRecord.adminNotes || '',
+              subtotal: subtotalBeforeDiscounts,
+              subtotal_amount: subtotalBeforeDiscounts,
+              discount_amount: totalDiscountAmount,
+              total_amount: grandTotal,
+              currency: activeCurrency,
+              items: orderItemsPayload,
+              payment_status: 'unpaid',
+              order_status: 'pending',
+              status: 'pending',
+              coupon_code: appliedCoupon?.code || null,
+              admin_notes: newOrderRecord.adminNotes,
+            },
+          ])
+          .select()
+          .single();
+
+        if (orderErr) {
+          console.error('Supabase ProductSalesPage order insert error:', orderErr);
+        } else if (createdOrder) {
+          try {
+            const dbItems = orderItemsPayload.map((item) => ({
+              order_id: createdOrder.id,
+              product_id: item.productId,
+              product_title: item.productTitle,
+              product_image: item.productImage,
+              quantity: item.quantity,
+              unit_price: item.unitPrice,
+              total_price: item.totalPrice,
+            }));
+            await supabase.from('order_items').insert(dbItems);
+          } catch (itemErr) {
+            console.warn('Could not insert order_items:', itemErr);
+          }
+        }
       }
     } catch (err) {
       console.warn('Order inserted locally fallback:', err);
@@ -449,6 +472,9 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
     const savedOrders = localStorage.getItem('dsp_admin_orders');
     const existingArr = savedOrders ? JSON.parse(savedOrders) : [];
     localStorage.setItem('dsp_admin_orders', JSON.stringify([newOrderRecord, ...existingArr]));
+
+    // Dispatch event for real-time local listeners
+    window.dispatchEvent(new Event('dsp_order_created'));
 
     if (onOrderCreated) {
       onOrderCreated(newOrderRecord);

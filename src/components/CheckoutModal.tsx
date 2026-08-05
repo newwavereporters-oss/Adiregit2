@@ -365,6 +365,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       );
       localStorage.setItem('dsp_admin_orders', JSON.stringify([orderPayload, ...existingOrders]));
 
+      window.dispatchEvent(new Event('dsp_order_created'));
+
       setCompletedOrder(orderPayload);
       onClearCart();
     } catch (err) {

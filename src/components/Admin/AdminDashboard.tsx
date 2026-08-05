@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { OrderStatusBadge, PaymentStatusBadge } from './OrderStatusBadge';
 import {
   LayoutDashboard,
   Package,
@@ -151,8 +152,108 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     try {
       localStorage.removeItem('dsp_admin_products');
-      localStorage.removeItem('dsp_admin_orders');
     } catch (_) {}
+  }, []);
+
+  // Helper to format raw order objects safely
+  const formatRawOrder = (o: any): Order => {
+    let rawItems: any[] = [];
+    if (Array.isArray(o.items)) {
+      rawItems = o.items;
+    } else if (typeof o.items === 'string') {
+      try {
+        const parsed = JSON.parse(o.items);
+        if (Array.isArray(parsed)) rawItems = parsed;
+      } catch (_) {}
+    } else if (Array.isArray(o.order_items)) {
+      rawItems = o.order_items;
+    }
+
+    return {
+      id: o.id || `ord-${Math.random()}`,
+      orderNumber: o.order_number || o.orderNumber || o.id || 'DSP-0000',
+      customerName: o.customer_name || o.customerName || 'N/A',
+      customerEmail: o.customer_email || o.customerEmail || '',
+      customerPhone: o.customer_phone || o.customerPhone || '',
+      shippingAddress: o.shipping_address || o.shippingAddress || '',
+      shippingCity: o.shipping_city || o.shippingCity || '',
+      shippingState: o.shipping_state || o.shippingState || '',
+      shippingCountry: o.shipping_country || o.shippingCountry || 'Nigeria',
+      shippingLocationId: o.shipping_location_id || o.shippingLocationId,
+      shippingLocationName: o.shipping_location_name || o.shippingLocationName || 'Standard Courier',
+      shippingFee: Number(o.shipping_fee || o.shippingFee || 0),
+      subtotalAmount: Number(o.subtotal_amount || o.subtotalAmount || o.subtotal || 0),
+      discountAmount: Number(o.discount_amount || o.discountAmount || 0),
+      totalAmount: Number(o.total_amount || o.totalAmount || 0),
+      currency: o.currency || 'NGN',
+      paymentStatus: o.payment_status || o.paymentStatus || 'unpaid',
+      status: o.order_status || o.status || 'pending',
+      couponCode: o.coupon_code || o.couponCode,
+      adminNotes: o.admin_notes || o.adminNotes || o.notes,
+      createdAt: o.created_at || o.createdAt || new Date().toISOString(),
+      items: rawItems.map((it: any) => ({
+        id: it.id || `it-${Math.random()}`,
+        productId: it.product_id || it.productId,
+        productTitle: it.product_title || it.productTitle || it.title || it.name,
+        productImage: it.product_image || it.productImage || it.image,
+        quantity: Number(it.quantity || it.qty || 1),
+        unitPrice: Number(it.unit_price || it.unitPrice || it.price || 0),
+        totalPrice: Number(it.total_price || it.totalPrice || 0),
+      })),
+    };
+  };
+
+  const fetchAllOrdersCombined = async (): Promise<Order[]> => {
+    let sbOrders: Order[] = [];
+    if (isSupabaseConfigured && supabase) {
+      const { data: plainData, error: plainErr } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!plainErr && plainData) {
+        sbOrders = plainData.map(formatRawOrder);
+      } else {
+        console.warn('Supabase orders fetch error:', plainErr?.message);
+      }
+    }
+
+    let localOrders: Order[] = [];
+    try {
+      const stored = localStorage.getItem('dsp_admin_orders');
+      if (stored) localOrders = JSON.parse(stored);
+    } catch (_) {}
+
+    const orderMap = new Map<string, Order>();
+    localOrders.forEach((o) => {
+      const key = o.orderNumber || o.id;
+      if (key) orderMap.set(key, o);
+    });
+    sbOrders.forEach((o) => {
+      const key = o.orderNumber || o.id;
+      if (key) orderMap.set(key, o);
+    });
+
+    return Array.from(orderMap.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  };
+
+  // Listen for local order creation events
+  useEffect(() => {
+    const sync = async () => {
+      const combined = await fetchAllOrdersCombined();
+      setOrders(combined);
+    };
+    sync();
+
+    const handleEvent = () => {
+      sync();
+    };
+    window.addEventListener('dsp_order_created', handleEvent);
+    return () => {
+      window.removeEventListener('dsp_order_created', handleEvent);
+    };
   }, []);
 
   // CHECK SUPABASE CONNECTION ON MOUNT
@@ -206,46 +307,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         if (lData) setLeads(lData as Lead[]);
 
         // Orders
-        const { data: oData } = await supabase
-          .from('orders')
-          .select('*, items:order_items(*)')
-          .order('created_at', { ascending: false });
-
-        if (oData) {
-          const formatted: Order[] = oData.map((o) => ({
-            id: o.id,
-            orderNumber: o.order_number,
-            customerName: o.customer_name,
-            customerEmail: o.customer_email,
-            customerPhone: o.customer_phone,
-            shippingAddress: o.shipping_address,
-            shippingCity: o.shipping_city,
-            shippingState: o.shipping_state,
-            shippingCountry: o.shipping_country,
-            shippingLocationId: o.shipping_location_id,
-            shippingLocationName: o.shipping_location_name,
-            shippingFee: Number(o.shipping_fee || 0),
-            subtotalAmount: Number(o.subtotal_amount || 0),
-            discountAmount: Number(o.discount_amount || 0),
-            totalAmount: Number(o.total_amount || 0),
-            currency: o.currency || 'USD',
-            paymentStatus: o.payment_status || 'pending',
-            status: o.order_status || o.status || 'pending',
-            couponCode: o.coupon_code,
-            adminNotes: o.admin_notes,
-            createdAt: o.created_at,
-            items: (o.items || []).map((it: any) => ({
-              id: it.id,
-              productId: it.product_id,
-              productTitle: it.product_title,
-              productImage: it.product_image,
-              quantity: it.quantity,
-              unitPrice: Number(it.unit_price),
-              totalPrice: Number(it.total_price),
-            })),
-          }));
-          setOrders(formatted);
-        }
+        const combinedOrders = await fetchAllOrdersCombined();
+        setOrders(combinedOrders);
         // Shipping Locations
         const { data: sData } = await supabase
           .from('shipping_locations')
@@ -292,42 +355,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           'postgres_changes',
           { event: '*', schema: 'public', table: 'orders' },
           async () => {
-            const { data } = await supabase.from('orders').select('*, items:order_items(*)').order('created_at', { ascending: false });
-            if (data) {
-              const formatted: Order[] = data.map((o) => ({
-                id: o.id,
-                orderNumber: o.order_number,
-                customerName: o.customer_name,
-                customerEmail: o.customer_email,
-                customerPhone: o.customer_phone,
-                shippingAddress: o.shipping_address,
-                shippingCity: o.shipping_city,
-                shippingState: o.shipping_state,
-                shippingCountry: o.shipping_country,
-                shippingLocationId: o.shipping_location_id,
-                shippingLocationName: o.shipping_location_name,
-                shippingFee: Number(o.shipping_fee || 0),
-                subtotalAmount: Number(o.subtotal_amount || 0),
-                discountAmount: Number(o.discount_amount || 0),
-                totalAmount: Number(o.total_amount || 0),
-                currency: o.currency || 'USD',
-                paymentStatus: o.payment_status || 'paid',
-                status: o.status || 'pending',
-                couponCode: o.coupon_code,
-                adminNotes: o.admin_notes,
-                createdAt: o.created_at,
-                items: (o.items || []).map((it: any) => ({
-                  id: it.id,
-                  productId: it.product_id,
-                  productTitle: it.product_title,
-                  productImage: it.product_image,
-                  quantity: it.quantity,
-                  unitPrice: Number(it.unit_price),
-                  totalPrice: Number(it.total_price),
-                })),
-              }));
-              setOrders(formatted);
-            }
+            const combinedOrders = await fetchAllOrdersCombined();
+            setOrders(combinedOrders);
           }
         )
         .on(
@@ -1384,43 +1413,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             {CURRENCY_SYMBOLS[order.currency] || '$'}
                             {order.totalAmount.toLocaleString()} {order.currency}
                           </td>
-                          <td className="p-4">
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-                                order.paymentStatus === 'paid'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}
-                            >
-                              {order.paymentStatus}
-                            </span>
+                          <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                            <PaymentStatusBadge status={order.paymentStatus} />
                           </td>
-                          <td className="p-4">
-                            <select
-                              value={order.status}
-                              onChange={(e) =>
-                                handleUpdateOrderStatus(
-                                  order.id,
-                                  e.target.value as OrderStatus
-                                )
+                          <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                            <OrderStatusBadge
+                              status={order.status}
+                              onStatusChange={(newStatus) =>
+                                handleUpdateOrderStatus(order.id, newStatus as OrderStatus)
                               }
-                              className={`px-2.5 py-1 rounded-xl text-xs font-bold border outline-none cursor-pointer ${
-                                order.status === 'completed'
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                  : order.status === 'processing'
-                                  ? 'bg-blue-50 text-blue-800 border-blue-200'
-                                  : order.status === 'cancelled'
-                                  ? 'bg-red-50 text-red-800 border-red-200'
-                                  : 'bg-amber-50 text-amber-800 border-amber-200'
-                              }`}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="processing">Processing</option>
-                              <option value="shipped">Shipped</option>
-                              <option value="delivered">Delivered</option>
-                              <option value="completed">Completed</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
+                            />
                           </td>
                           <td className="p-4 text-right">
                             <button
@@ -1451,15 +1453,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <span className="font-mono font-bold text-sm text-[#1B2A4A]">
                         {order.orderNumber}
                       </span>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          order.paymentStatus === 'paid'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
-                        }`}
-                      >
-                        {order.paymentStatus}
-                      </span>
+                      <PaymentStatusBadge status={order.paymentStatus} />
                     </div>
 
                     <div className="text-xs space-y-1">
@@ -1472,20 +1466,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
 
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100 gap-2">
-                      <select
-                        value={order.status}
-                        onChange={(e) =>
-                          handleUpdateOrderStatus(order.id, e.target.value as OrderStatus)
+                      <OrderStatusBadge
+                        status={order.status}
+                        onStatusChange={(newStatus) =>
+                          handleUpdateOrderStatus(order.id, newStatus as OrderStatus)
                         }
-                        className="px-2.5 py-1.5 rounded-xl text-xs font-bold border outline-none bg-gray-50"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="processing">Processing</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                      />
 
                       <button
                         onClick={() => {
@@ -2119,9 +2105,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span className="text-xs uppercase font-bold tracking-widest text-[#D1B464]">
                     Order Details
                   </span>
-                  <h3 className="font-serif-title text-2xl font-bold text-[#1B2A4A]">
-                    {selectedOrder.orderNumber}
-                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <h3 className="font-serif-title text-2xl font-bold text-[#1B2A4A]">
+                      {selectedOrder.orderNumber}
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <PaymentStatusBadge status={selectedOrder.paymentStatus} />
+                    <OrderStatusBadge
+                      status={selectedOrder.status}
+                      onStatusChange={(newStatus) => {
+                        handleUpdateOrderStatus(selectedOrder.id, newStatus as OrderStatus);
+                        setSelectedOrder({ ...selectedOrder, status: newStatus as OrderStatus });
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <button

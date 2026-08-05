@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
+import { OrderStatusBadge, PaymentStatusBadge } from '../../../components/Admin/OrderStatusBadge';
 
 interface OrderItem {
   id?: string;
@@ -43,6 +44,7 @@ export default function AdminOrdersPage() {
   // 1. Fetch live orders
   const fetchOrders = async () => {
     setLoading(true);
+    let sbOrders: any[] = [];
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('orders')
@@ -52,21 +54,50 @@ export default function AdminOrdersPage() {
       if (error) {
         console.error('Error fetching orders:', error.message);
       } else if (data) {
-        setOrders(data);
-        // If an order is currently opened in modal, update its state
-        if (selectedOrder) {
-          const updated = data.find((o) => o.id === selectedOrder.id);
-          if (updated) setSelectedOrder(updated);
-        }
+        sbOrders = data;
       }
-    } else {
-      setOrders([]);
+    }
+
+    let localOrders: any[] = [];
+    try {
+      const stored = localStorage.getItem('dsp_admin_orders');
+      if (stored) localOrders = JSON.parse(stored);
+    } catch (_) {}
+
+    const orderMap = new Map<string, any>();
+    localOrders.forEach((o) => {
+      const key = o.order_number || o.orderNumber || o.id;
+      if (key) orderMap.set(key.toString(), o);
+    });
+    sbOrders.forEach((o) => {
+      const key = o.order_number || o.orderNumber || o.id;
+      if (key) orderMap.set(key.toString(), o);
+    });
+
+    const combined = Array.from(orderMap.values()).sort((a, b) => {
+      const timeA = new Date(a.created_at || a.createdAt || 0).getTime();
+      const timeB = new Date(b.created_at || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+
+    setOrders(combined);
+    if (selectedOrder) {
+      const updated = combined.find((o) => (o.id || o.orderNumber) === (selectedOrder.id || selectedOrder.orderNumber));
+      if (updated) setSelectedOrder(updated);
     }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchOrders();
+
+    const handleCreated = () => {
+      fetchOrders();
+    };
+    window.addEventListener('dsp_order_created', handleCreated);
+    return () => {
+      window.removeEventListener('dsp_order_created', handleCreated);
+    };
   }, []);
 
   // 2. Dynamic Status Update Handler
@@ -235,32 +266,14 @@ export default function AdminOrdersPage() {
                     <td className="p-4 font-semibold text-[#1B2A4A]">
                       {currency} {totalAmount.toLocaleString()}
                     </td>
-                    <td className="p-4">
-                      <span
-                        className={`px-2.5 py-1 text-xs rounded-full uppercase font-medium ${
-                          paymentStatus === 'paid'
-                            ? 'bg-green-100 text-green-800'
-                            : paymentStatus === 'partially_paid'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {paymentStatus}
-                      </span>
+                    <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      <PaymentStatusBadge status={paymentStatus} />
                     </td>
                     <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        value={currentStatus}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        className="border border-gray-300 rounded px-2.5 py-1 text-xs font-semibold bg-white text-[#1B2A4A] focus:outline-none focus:ring-1 focus:ring-[#D1B464] cursor-pointer"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="processing">Processing</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="completed">Completed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                      <OrderStatusBadge
+                        status={currentStatus}
+                        onStatusChange={(newStatus) => handleStatusChange(order.id, newStatus)}
+                      />
                     </td>
                     <td className="p-4 text-xs text-gray-500">
                       {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
@@ -320,31 +333,15 @@ export default function AdminOrdersPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-gray-500">Payment Status:</span>
-                <span
-                  className={`px-2.5 py-0.5 text-xs rounded-full uppercase font-bold ${
-                    (selectedOrder.payment_status || selectedOrder.paymentStatus) === 'paid'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}
-                >
-                  {selectedOrder.payment_status || selectedOrder.paymentStatus || 'pending'}
-                </span>
+                <PaymentStatusBadge status={selectedOrder.payment_status || selectedOrder.paymentStatus || 'pending'} />
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-gray-500">Fulfillment Status:</span>
-                <select
-                  value={selectedOrder.order_status || selectedOrder.status || 'pending'}
-                  onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value)}
-                  className="border border-gray-300 rounded px-2.5 py-1 text-xs font-semibold bg-white text-[#1B2A4A] focus:outline-none focus:ring-1 focus:ring-[#D1B464] cursor-pointer"
-                >
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="shipped">Shipped</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
+                <OrderStatusBadge
+                  status={selectedOrder.order_status || selectedOrder.status || 'pending'}
+                  onStatusChange={(newStatus) => handleStatusChange(selectedOrder.id, newStatus)}
+                />
               </div>
             </div>
 
