@@ -322,9 +322,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               total_amount: grandTotal,
               currency: activeCurrency,
               items: jsonItems,
-              payment_status: 'paid',
-              order_status: 'processing',
-              status: 'processing',
+              payment_status: 'pending',
+              order_status: 'pending',
+              status: 'pending',
               coupon_code: appliedCoupon ? appliedCoupon.code : null,
             },
           ])

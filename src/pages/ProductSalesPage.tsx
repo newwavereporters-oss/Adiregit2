@@ -432,6 +432,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
             currency: activeCurrency,
             items: orderItemsPayload,
             payment_status: effectivePaymentOption === 'full' ? 'paid' : 'pending',
+            order_status: 'pending',
             status: 'pending',
             coupon_code: appliedCoupon?.code || null,
             admin_notes: newOrderRecord.adminNotes,

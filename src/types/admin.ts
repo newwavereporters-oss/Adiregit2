@@ -61,7 +61,7 @@ export interface Lead {
   status: 'active' | 'contacted';
 }
 
-export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
+export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled';
 export type PaymentStatus = 'unpaid' | 'paid' | 'pending' | 'partially_paid';
 
 export interface OrderItem {

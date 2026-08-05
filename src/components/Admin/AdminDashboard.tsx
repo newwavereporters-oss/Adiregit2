@@ -229,8 +229,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             discountAmount: Number(o.discount_amount || 0),
             totalAmount: Number(o.total_amount || 0),
             currency: o.currency || 'USD',
-            paymentStatus: o.payment_status || 'paid',
-            status: o.status || 'pending',
+            paymentStatus: o.payment_status || 'pending',
+            status: o.order_status || o.status || 'pending',
             couponCode: o.coupon_code,
             adminNotes: o.admin_notes,
             createdAt: o.created_at,
@@ -361,7 +361,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     showToast(`Order status updated to "${newStatus.toUpperCase()}"`);
 
     if (isSupabaseConfigured && supabase) {
-      await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+      await supabase
+        .from('orders')
+        .update({ order_status: newStatus, status: newStatus })
+        .eq('id', orderId);
     }
   };
 
@@ -1413,6 +1416,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             >
                               <option value="pending">Pending</option>
                               <option value="processing">Processing</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
                               <option value="completed">Completed</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
@@ -1476,6 +1481,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       >
                         <option value="pending">Pending</option>
                         <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
                       </select>
