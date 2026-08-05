@@ -636,7 +636,7 @@ export const OrderStatusModal: React.FC<OrderStatusModalProps> = ({
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <a
-                  href={`https://wa.me/2348000000000?text=Hello%20DSP%20Adire,%20I%20am%20checking%20on%20my%20Order%20%23${order.orderNumber}`}
+                  href={`https://wa.me/2348169664607?text=Hello%20DSP%20Adire,%20I%20am%20checking%20on%20my%20Order%20%23${order.orderNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors cursor-pointer"

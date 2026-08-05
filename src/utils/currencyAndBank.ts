@@ -92,22 +92,22 @@ export function formatCurrencyValue(amount: number, currency: CurrencyCode): str
 
 /**
  * Calculates Commitment Deposit for Pay on Delivery in specified currency.
- * Fixed base deposit: ₦2,000 NGN
- * USD: ~$1.25 | GBP: ~£1.05 | EUR: ~€1.21
+ * Fixed base deposit: ₦5,000 NGN
+ * USD: ~$3.12 | GBP: ~£2.63 | EUR: ~€3.03
  */
 export function getCommitmentDeposit(currency: CurrencyCode): { amount: number; formatted: string } {
-  const depositInNGN = 2000;
+  const depositInNGN = 5000;
   if (currency === 'NGN') {
-    return { amount: 2000, formatted: '₦2,000' };
+    return { amount: 5000, formatted: '₦5,000' };
   }
   if (currency === 'USD') {
-    return { amount: 1.25, formatted: '$1.25' };
+    return { amount: 3.12, formatted: '$3.12' };
   }
   if (currency === 'GBP') {
-    return { amount: 1.05, formatted: '£1.05' };
+    return { amount: 2.63, formatted: '£2.63' };
   }
   if (currency === 'EUR') {
-    return { amount: 1.21, formatted: '€1.21' };
+    return { amount: 3.03, formatted: '€3.03' };
   }
   const converted = convertFromNGN(depositInNGN, currency);
   return { amount: converted, formatted: formatCurrencyValue(converted, currency) };

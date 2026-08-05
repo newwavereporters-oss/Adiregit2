@@ -417,13 +417,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const rateGbp = Math.round((rateNgn / 1900) * 100) / 100;
     const rateEur = Math.round((rateNgn / 1650) * 100) / 100;
 
+    const locationName = shippingForm.state_region.trim() || 'Standard Delivery';
+
     const payload = {
-      state_region: shippingForm.state_region.trim(),
-      rate_ngn: rateNgn,
-      rate_usd: rateUsd,
-      rate_gbp: rateGbp,
-      rate_eur: rateEur,
+      location_name: locationName,
+      state: locationName,
+      state_region: locationName,
+      estimated_delivery_days: shippingForm.delivery_timeframe.trim() || '2-4 Days',
       delivery_timeframe: shippingForm.delivery_timeframe.trim() || '24-48 Hours',
+      fee_ngn: rateNgn,
+      rate_ngn: rateNgn,
+      fee_usd: rateUsd,
+      rate_usd: rateUsd,
+      fee_gbp: rateGbp,
+      rate_gbp: rateGbp,
+      fee_eur: rateEur,
+      rate_eur: rateEur,
       is_active: shippingForm.is_active,
     };
 

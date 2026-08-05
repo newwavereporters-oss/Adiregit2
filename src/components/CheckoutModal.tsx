@@ -291,6 +291,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     try {
       if (isSupabaseConfigured && supabase) {
+        const jsonItems = cart.map((item) => ({
+          product_id: item.product.id,
+          title: item.product.title,
+          price: item.product.prices[currencyKey] || item.product.prices.usd,
+          quantity: item.quantity,
+          unit: item.product.unit || 'piece',
+          primary_image_url: item.product.media?.primaryUrl,
+        }));
+
         // Insert Order into `orders`
         const { data: createdOrder, error: orderErr } = await supabase
           .from('orders')
@@ -301,17 +310,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               customer_email: customerEmail,
               customer_phone: customerPhone,
               shipping_address: shippingAddress,
-              shipping_city: shippingCity,
-              shipping_country: shippingCountry,
+              shipping_city: shippingCity || 'Lagos',
+              shipping_state: selectedLocation?.state_region || selectedLocation?.name || shippingCity || 'Lagos',
+              shipping_country: shippingCountry || 'Nigeria',
               shipping_location_id: selectedLocation?.id,
               shipping_location_name: selectedLocation?.state_region || selectedLocation?.name || 'Standard Courier',
               shipping_fee: shippingFee,
+              subtotal: subtotal,
               subtotal_amount: subtotal,
               discount_amount: discountAmount,
               total_amount: grandTotal,
               currency: activeCurrency,
+              items: jsonItems,
               payment_status: 'paid',
-              status: 'pending',
+              order_status: 'processing',
+              status: 'processing',
               coupon_code: appliedCoupon ? appliedCoupon.code : null,
             },
           ])
@@ -497,15 +510,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                 <a
-                  href={`https://wa.me/2348000000000?text=${encodeURIComponent(
-                    `Hello DSP Adire Guild, I just placed order ${completedOrder.orderNumber} for ${currencySymbol}${completedOrder.totalAmount}. Kindly confirm dispatch timeframe!`
+                  href={`https://wa.me/2348169664607?text=${encodeURIComponent(
+                    `Hello DSP Adire, I just placed order ${completedOrder.orderNumber} for ${currencySymbol}${completedOrder.totalAmount}. Kindly confirm dispatch timeframe!`
                   )}`}
                   target="_blank"
                   rel="noreferrer"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-[#25D366] text-white font-bold text-xs uppercase tracking-wider hover:bg-[#20bd5a] transition-all shadow-md cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Notify Guild on WhatsApp</span>
+                  <span>Send Transaction Proof to Us</span>
                 </a>
 
                 <button

@@ -62,7 +62,7 @@ export interface Lead {
 }
 
 export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
-export type PaymentStatus = 'unpaid' | 'paid';
+export type PaymentStatus = 'unpaid' | 'paid' | 'pending' | 'partially_paid';
 
 export interface OrderItem {
   id?: string;

@@ -282,13 +282,23 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
 
   const grandTotal = Math.max(0, subtotalBeforeDiscounts - totalDiscountAmount + shippingFeeInCurrency);
 
-  // Deposit calculation for POD (Pay on Delivery)
+  // Check if delivery location/city is within Lagos State
+  const isLagosDelivery = (
+    (activeShippingLoc?.state_region || activeShippingLoc?.name || '').toLowerCase().includes('lagos') ||
+    (buyerCity || '').toLowerCase().includes('lagos') ||
+    (buyerAddress || '').toLowerCase().includes('lagos')
+  );
+
+  // Payment on Delivery is strictly available within Lagos State. Outside Lagos requires full payment before delivery.
+  const effectivePaymentOption = (!isLagosDelivery && paymentOption === 'pod') ? 'full' : paymentOption;
+
+  // Deposit calculation for POD (Pay on Delivery: ₦5,000 NGN default)
   const depositInfo = getCommitmentDeposit(activeCurrency);
   const commitmentDepositAmount = Math.min(grandTotal, depositInfo.amount);
   const remainingBalanceOnDelivery = Math.max(0, grandTotal - commitmentDepositAmount);
 
   // Pay Now amount depends on payment option selected
-  const payNowAmount = paymentOption === 'pod' ? commitmentDepositAmount : grandTotal;
+  const payNowAmount = effectivePaymentOption === 'pod' ? commitmentDepositAmount : grandTotal;
 
   // Validate Coupon Code
   const handleValidateCoupon = async () => {
@@ -345,6 +355,24 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
 
     const generatedOrderNumber = `DSP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const orderItemsPayload = [
+      {
+        id: `item-${Date.now()}`,
+        product_id: product.id,
+        productId: product.id,
+        title: product.title,
+        productTitle: product.title,
+        product_image: product.media?.primaryUrl,
+        productImage: product.media?.primaryUrl,
+        quantity: quantityYards,
+        unit: product.unit || 'yard',
+        unit_price: unitPriceInCurrency,
+        unitPrice: unitPriceInCurrency,
+        total_price: subtotalBeforeDiscounts,
+        totalPrice: subtotalBeforeDiscounts,
+      },
+    ];
+
     const newOrderRecord: Order = {
       id: `ord-${Date.now()}`,
       orderNumber: generatedOrderNumber,
@@ -352,21 +380,21 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
       customerEmail: buyerEmail,
       customerPhone: buyerPhone,
       shippingAddress: buyerAddress,
-      shippingCity: buyerCity || 'Main City',
+      shippingCity: buyerCity || 'Lagos',
       shippingCountry: activeShippingLoc?.country || 'Nigeria',
       shippingLocationId: activeShippingLoc?.id,
-      shippingLocationName: activeShippingLoc?.name,
+      shippingLocationName: activeShippingLoc?.state_region || activeShippingLoc?.name || 'Lagos Courier',
       shippingFee: shippingFeeInCurrency,
       subtotalAmount: subtotalBeforeDiscounts,
       discountAmount: totalDiscountAmount,
       totalAmount: grandTotal,
       currency: activeCurrency,
-      paymentStatus: 'unpaid',
+      paymentStatus: effectivePaymentOption === 'full' ? 'paid' : 'pending',
       status: 'pending',
       couponCode: appliedCoupon?.code,
-      adminNotes: paymentOption === 'pod'
-        ? `Pay on Delivery. Commitment Deposit Due Now: ${formatCurrencyValue(commitmentDepositAmount, activeCurrency)}. Remaining Balance: ${formatCurrencyValue(remainingBalanceOnDelivery, activeCurrency)}.`
-        : `Full Payment Option Selected (Extra 3% Discount Applied). Total Due Now: ${formatCurrencyValue(grandTotal, activeCurrency)}.`,
+      adminNotes: effectivePaymentOption === 'pod'
+        ? `Pay on Delivery (Lagos State). Deposit Paid: ${formatCurrencyValue(commitmentDepositAmount, activeCurrency)}. Balance Due: ${formatCurrencyValue(remainingBalanceOnDelivery, activeCurrency)}.`
+        : `Full Payment Selected. Total Paid: ${formatCurrencyValue(grandTotal, activeCurrency)}.`,
       createdAt: new Date().toISOString(),
       items: [
         {
@@ -381,28 +409,31 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
       ],
     };
 
-    // Save to Supabase if available
+    // Save to Supabase
     try {
       if (isSupabaseConfigured && supabase) {
         await supabase.from('orders').insert([
           {
-            id: newOrderRecord.id,
-            order_number: newOrderRecord.orderNumber,
-            customer_name: newOrderRecord.customerName,
-            customer_email: newOrderRecord.customerEmail,
-            customer_phone: newOrderRecord.customerPhone,
-            shipping_address: newOrderRecord.shippingAddress,
-            shipping_city: newOrderRecord.shippingCity,
-            shipping_country: newOrderRecord.shippingCountry,
-            shipping_location_id: newOrderRecord.shippingLocationId,
-            shipping_fee: newOrderRecord.shippingFee,
-            subtotal_amount: newOrderRecord.subtotalAmount,
-            discount_amount: newOrderRecord.discountAmount,
-            total_amount: newOrderRecord.totalAmount,
-            currency: newOrderRecord.currency,
-            payment_status: newOrderRecord.paymentStatus,
-            status: newOrderRecord.status,
-            coupon_code: newOrderRecord.couponCode,
+            order_number: generatedOrderNumber,
+            customer_name: buyerName,
+            customer_email: buyerEmail,
+            customer_phone: buyerPhone,
+            shipping_address: buyerAddress,
+            shipping_city: buyerCity || 'Lagos',
+            shipping_state: activeShippingLoc?.state_region || activeShippingLoc?.name || buyerCity || 'Lagos',
+            shipping_country: activeShippingLoc?.country || 'Nigeria',
+            shipping_location_id: activeShippingLoc?.id,
+            shipping_location_name: activeShippingLoc?.state_region || activeShippingLoc?.name || 'Standard Courier',
+            shipping_fee: shippingFeeInCurrency,
+            subtotal: subtotalBeforeDiscounts,
+            subtotal_amount: subtotalBeforeDiscounts,
+            discount_amount: totalDiscountAmount,
+            total_amount: grandTotal,
+            currency: activeCurrency,
+            items: orderItemsPayload,
+            payment_status: effectivePaymentOption === 'full' ? 'paid' : 'pending',
+            status: 'pending',
+            coupon_code: appliedCoupon?.code || null,
             admin_notes: newOrderRecord.adminNotes,
           },
         ]);
@@ -442,17 +473,17 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const constructWhatsAppMessage = () => {
     if (!createdOrder) return '';
     const bank = BANK_DETAILS[createdOrder.currency];
-    const text = `Hello DSP Adire Factory, I have completed my order request!
+    const text = `Hello DSP Adire, I have completed my order request!
 Order Ref: ${createdOrder.orderNumber}
 Product: ${product.title} (${quantityYards} Yds - Size ${selectedSize})
 Customer: ${createdOrder.customerName}
 Phone: ${createdOrder.customerPhone}
-Payment Option: ${paymentOption === 'pod' ? 'Pay on Delivery (Commitment Deposit)' : 'Full Payment'}
+Payment Option: ${effectivePaymentOption === 'pod' ? 'Pay on Delivery (Lagos State - ₦5,000 Deposit)' : 'Full Payment'}
 Amount to Pay Now: ${formatCurrencyValue(payNowAmount, createdOrder.currency)}
 Bank Account: ${bank.bankName} - ${bank.accountNumber} (${bank.accountName})
 
 I will attach my payment receipt here.`;
-    return `https://wa.me/2348031234567?text=${encodeURIComponent(text)}`;
+    return `https://wa.me/2348169664607?text=${encodeURIComponent(text)}`;
   };
 
   return (
@@ -928,11 +959,19 @@ I will attach my payment receipt here.`;
               </label>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* OPTION 1: Pay on Delivery (Commitment Deposit) */}
+                {/* OPTION 1: Pay on Delivery (Commitment Deposit - Lagos State Only) */}
                 <div
-                  onClick={() => setPaymentOption('pod')}
+                  onClick={() => {
+                    if (isLagosDelivery) {
+                      setPaymentOption('pod');
+                    } else {
+                      setPaymentOption('full');
+                    }
+                  }}
                   className={`p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
-                    paymentOption === 'pod'
+                    !isLagosDelivery
+                      ? 'bg-gray-100/80 border-gray-200 opacity-80'
+                      : effectivePaymentOption === 'pod'
                       ? 'bg-white border-[#1B2A4A] shadow-md'
                       : 'bg-white/60 border-gray-200 hover:border-gray-300'
                   }`}
@@ -945,24 +984,34 @@ I will attach my payment receipt here.`;
                     <input
                       type="radio"
                       name="paymentOption"
-                      checked={paymentOption === 'pod'}
-                      onChange={() => setPaymentOption('pod')}
+                      disabled={!isLagosDelivery}
+                      checked={effectivePaymentOption === 'pod'}
+                      onChange={() => {
+                        if (isLagosDelivery) setPaymentOption('pod');
+                      }}
                       className="accent-[#1B2A4A] cursor-pointer"
                     />
                   </div>
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isLagosDelivery ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800'}`}>
+                    {isLagosDelivery ? 'Lagos State Only (₦5,000 Deposit)' : 'Lagos State Deliveries Only'}
+                  </span>
                   <p className="text-[11px] text-gray-500">
-                    Pay ₦2,000 commitment deposit now, pay balance upon package inspection.
+                    {isLagosDelivery
+                      ? `Pay ${formatCurrencyValue(commitmentDepositAmount, activeCurrency)} deposit now, pay remaining balance upon inspection.`
+                      : 'Pay on Delivery is only available within Lagos state. Outside Lagos requires full payment before dispatch.'}
                   </p>
-                  <div className="pt-2 text-xs font-bold text-[#1B2A4A] border-t border-gray-100">
-                    Due Now: <span className="text-emerald-700">{formatCurrencyValue(commitmentDepositAmount, activeCurrency)}</span>
-                  </div>
+                  {isLagosDelivery && (
+                    <div className="pt-2 text-xs font-bold text-[#1B2A4A] border-t border-gray-100">
+                      Due Now: <span className="text-emerald-700">{formatCurrencyValue(commitmentDepositAmount, activeCurrency)}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* OPTION 2: Pay Full Amount Now (Extra 3% Discount) */}
                 <div
                   onClick={() => setPaymentOption('full')}
                   className={`p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
-                    paymentOption === 'full'
+                    effectivePaymentOption === 'full'
                       ? 'bg-white border-[#1B2A4A] shadow-md'
                       : 'bg-white/60 border-gray-200 hover:border-gray-300'
                   }`}
@@ -975,7 +1024,7 @@ I will attach my payment receipt here.`;
                     <input
                       type="radio"
                       name="paymentOption"
-                      checked={paymentOption === 'full'}
+                      checked={effectivePaymentOption === 'full'}
                       onChange={() => setPaymentOption('full')}
                       className="accent-[#1B2A4A] cursor-pointer"
                     />
@@ -984,13 +1033,19 @@ I will attach my payment receipt here.`;
                     Extra 3% Instant Discount
                   </span>
                   <p className="text-[11px] text-gray-500">
-                    Saves full shipping priority queue & reduces bank transfer hassle.
+                    Priority dispatch queue & zero payment balance stress on delivery day.
                   </p>
                   <div className="pt-1 text-xs font-bold text-[#1B2A4A] border-t border-gray-100">
                     Due Now: <span className="text-emerald-700">{formatCurrencyValue(grandTotal, activeCurrency)}</span>
                   </div>
                 </div>
               </div>
+
+              {!isLagosDelivery && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                  <span className="font-bold">Notice:</span> Delivery location is outside Lagos State. Full payment (product total + courier fee) is required prior to shipment.
+                </div>
+              )}
 
               {/* BREAKDOWN SUMMARY BOX */}
               <div className="bg-white p-4 rounded-xl border border-gray-200 text-xs space-y-2">
@@ -1221,7 +1276,7 @@ I will attach my payment receipt here.`;
                   className="w-full py-4 rounded-2xl bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer text-center block"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Send Transaction Proof to Factory WhatsApp</span>
+                  <span>Send Transaction Proof to Us</span>
                 </a>
 
                 <button
