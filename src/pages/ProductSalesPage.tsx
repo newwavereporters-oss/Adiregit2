@@ -378,7 +378,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
       },
     ];
 
-    const newOrderRecord: Order = {
+    const newOrderRecord: Order & { payNowAmount?: number } = {
       id: `ord-${Date.now()}`,
       orderNumber: generatedOrderNumber,
       customerName: buyerName,
@@ -393,6 +393,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
       subtotalAmount: subtotalBeforeDiscounts,
       discountAmount: totalDiscountAmount,
       totalAmount: grandTotal,
+      payNowAmount: payNowAmount,
       currency: activeCurrency,
       paymentStatus: effectivePaymentOption === 'full' ? 'paid' : 'pending',
       status: 'pending',
@@ -1381,29 +1382,31 @@ I will attach my payment receipt here.`;
               className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-[#D1B464]"
             >
               <div className="text-center space-y-2">
-                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center shadow-inner">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
                 <h3 className="font-serif-title text-2xl font-bold text-[#1B2A4A]">
                   Order Placed Successfully!
                 </h3>
-                <p className="text-xs text-gray-500 font-mono">
-                  Order Ref: <span className="font-bold text-[#1B2A4A]">{createdOrder.orderNumber}</span>
+                <p className="text-xs text-gray-500 font-mono tracking-wide">
+                  Order Ref: <span className="font-bold text-[#1B2A4A] bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">{createdOrder.orderNumber}</span>
                 </p>
               </div>
 
-              <div className="bg-[#FAFAFA] p-4 rounded-2xl border border-gray-200 text-xs space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Item:</span>
-                  <span className="font-bold text-[#1B2A4A]">{product.title}</span>
+              <div className="bg-[#FAFAFA] p-4 sm:p-5 rounded-2xl border border-gray-200 text-xs space-y-3 shadow-2xs">
+                <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                  <span className="text-gray-500 font-medium">Item:</span>
+                  <span className="font-bold text-[#1B2A4A] text-right ml-4">{product.title}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Customer:</span>
-                  <span className="font-bold text-[#1B2A4A]">{createdOrder.customerName}</span>
+                <div className="flex justify-between items-center py-1 border-b border-gray-100">
+                  <span className="text-gray-500 font-medium">Customer:</span>
+                  <span className="font-bold text-[#1B2A4A] text-right ml-4">{createdOrder.customerName}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Amount Due Now:</span>
-                  <span className="font-bold text-emerald-700">{formatCurrencyValue(payNowAmount, createdOrder.currency)}</span>
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-gray-600 font-semibold">Amount Due Now:</span>
+                  <span className="font-black text-emerald-700 text-sm sm:text-base bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                    {formatCurrencyValue((createdOrder as any).payNowAmount ?? payNowAmount, createdOrder.currency)}
+                  </span>
                 </div>
               </div>
 
