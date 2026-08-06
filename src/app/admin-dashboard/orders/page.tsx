@@ -241,18 +241,19 @@ export default function AdminOrdersPage() {
             <tbody className="divide-y divide-gray-200 text-sm">
               {filteredOrders.map((order) => {
                 const currentStatus = order.order_status || order.status || 'pending';
-                const paymentStatus = order.payment_status || order.paymentStatus || 'pending';
+                const paymentStatus = order.payment_status || order.paymentStatus || 'unpaid';
                 const orderRef = order.order_number || order.orderNumber || order.id;
                 const customerName = order.customer_name || order.customerName || 'N/A';
                 const customerEmail = order.customer_email || order.customerEmail || '';
+                const customerPhone = order.customer_phone || order.customerPhone || '';
                 const currency = order.currency || 'NGN';
                 const totalAmount = Number(order.total_amount || order.totalAmount || 0);
 
                 return (
                   <tr
-                    key={order.id}
+                    key={order.id || orderRef}
                     onClick={() => setSelectedOrder(order)}
-                    className="hover:bg-amber-50/50 transition-colors cursor-pointer group"
+                    className="hover:bg-amber-50/50 transition-colors cursor-pointer group border-b border-gray-100"
                   >
                     <td className="p-4 font-mono font-bold text-[#1B2A4A]">
                       {orderRef}
@@ -261,34 +262,61 @@ export default function AdminOrdersPage() {
                       <div className="font-semibold text-[#1B2A4A] group-hover:text-[#D1B464] transition-colors">
                         {customerName}
                       </div>
-                      {customerEmail && <div className="text-xs text-gray-500">{customerEmail}</div>}
+                      {customerPhone && <div className="text-xs text-gray-600 font-mono font-medium">{customerPhone}</div>}
+                      {customerEmail && <div className="text-xs text-gray-400">{customerEmail}</div>}
                     </td>
-                    <td className="p-4 font-semibold text-[#1B2A4A]">
+                    <td className="p-4 font-bold text-[#1B2A4A]">
                       {currency} {totalAmount.toLocaleString()}
                     </td>
                     <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                      <PaymentStatusBadge status={paymentStatus} />
+                      <span className={`px-2.5 py-1 text-xs rounded-full font-bold uppercase tracking-wider inline-block ${
+                        paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'
+                      }`}>
+                        {paymentStatus}
+                      </span>
                     </td>
                     <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                      <OrderStatusBadge
-                        status={currentStatus}
-                        onStatusChange={(newStatus) => handleStatusChange(order.id, newStatus)}
-                      />
+                      <select
+                        value={currentStatus}
+                        onChange={(e) => handleStatusChange(order.id || orderRef, e.target.value)}
+                        className="border border-gray-300 rounded-lg px-2.5 py-1 text-xs font-semibold bg-white text-[#1B2A4A] focus:outline-none focus:ring-2 focus:ring-[#D1B464] cursor-pointer"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
                     </td>
                     <td className="p-4 text-xs text-gray-500">
-                      {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
+                      {order.created_at ? new Date(order.created_at).toLocaleDateString() : (order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A')}
                     </td>
-                    <td className="p-4 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedOrder(order);
-                        }}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#1B2A4A] hover:text-[#D1B464] px-2 py-1 rounded hover:bg-gray-100 transition-colors cursor-pointer"
-                      >
-                        <span>Details</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
+                    <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-2">
+                        {customerPhone && (
+                          <a
+                            href={`https://wa.me/${customerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                              `Hello ${customerName}, thank you for your order (${orderRef}) on DSP Adire. We noticed your payment is still pending. Need help completing your bank transfer?`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+                          >
+                            <span>💬 Follow Up</span>
+                          </a>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedOrder(order);
+                          }}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#1B2A4A] hover:text-[#D1B464] px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                        >
+                          <span>Details</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

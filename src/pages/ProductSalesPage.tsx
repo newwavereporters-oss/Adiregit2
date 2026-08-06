@@ -358,7 +358,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
 
     setIsSubmitting(true);
 
-    const generatedOrderNumber = `DSP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const generatedOrderNumber = `DSP-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const orderItemsPayload = [
       {
@@ -395,7 +395,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
       totalAmount: grandTotal,
       payNowAmount: payNowAmount,
       currency: activeCurrency,
-      paymentStatus: effectivePaymentOption === 'full' ? 'paid' : 'pending',
+      paymentStatus: 'unpaid',
       status: 'pending',
       couponCode: appliedCoupon?.code,
       adminNotes: effectivePaymentOption === 'pod'
@@ -415,7 +415,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
       ],
     };
 
-    // Save to Supabase
+    // IMMEDIATELY SAVE TO SUPABASE BEFORE WHATSAPP / BANK TRANSFER MODAL
     try {
       if (isSupabaseConfigured && supabase) {
         const { data: createdOrder, error: orderErr } = await supabase
@@ -434,13 +434,14 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
               shipping_location_name: activeShippingLoc?.state_region || activeShippingLoc?.name || 'Standard Courier',
               shipping_fee: shippingFeeInCurrency,
               shipping_cost: shippingFeeInCurrency,
-              notes: newOrderRecord.adminNotes || '',
+              notes: newOrderRecord.adminNotes || 'Direct Transfer Checkout',
               subtotal: subtotalBeforeDiscounts,
               subtotal_amount: subtotalBeforeDiscounts,
               discount_amount: totalDiscountAmount,
               total_amount: grandTotal,
               currency: activeCurrency,
               items: orderItemsPayload,
+              payment_method: 'Direct Bank Transfer',
               payment_status: 'unpaid',
               order_status: 'pending',
               status: 'pending',
@@ -452,7 +453,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           .single();
 
         if (orderErr) {
-          console.error('Supabase ProductSalesPage order insert error:', orderErr);
+          console.error('CRITICAL ORDER SAVE ERROR:', orderErr.message);
         } else if (createdOrder) {
           try {
             const dbItems = orderItemsPayload.map((item) => ({

@@ -282,7 +282,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       discountAmount,
       totalAmount: grandTotal,
       currency: activeCurrency,
-      paymentStatus: 'paid', // Default online invoice simulated
+      paymentStatus: 'unpaid', // Recorded as unpaid lead initially
       status: 'pending',
       couponCode: appliedCoupon ? appliedCoupon.code : undefined,
       createdAt: new Date().toISOString(),
