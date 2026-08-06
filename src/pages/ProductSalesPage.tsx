@@ -29,6 +29,7 @@ import { FormattedProductDescription } from '../components/FormattedProductDescr
 import { OrderStatusModal } from '../components/OrderStatusModal';
 import { CurrencyDropdown } from '../components/CurrencyDropdown';
 import { FloatingTrackOrderCard } from '../components/FloatingTrackOrderCard';
+import { ProductVideoPlayer } from '../components/ProductVideoPlayer';
 import {
   Product,
   CurrencyCode,
@@ -116,35 +117,61 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
     async function fetchProductData() {
       // 1. Fetch Product directly from Supabase where slug equals passed slug prop
       if (isSupabaseConfigured && supabase) {
-        let { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('slug', slug)
-          .maybeSingle();
+        let data: any = null;
+        let error: any = null;
 
-        // Fallback check by UUID if slug didn't match and slug is a valid UUID
-        const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(slug || '');
-        if (!data && !error && isUuid) {
-          const idRes = await supabase
+        // Strategy A: Exact slug match
+        if (slug) {
+          const res1 = await supabase
+            .from('products')
+            .select('*')
+            .eq('slug', slug)
+            .maybeSingle();
+          data = res1.data;
+          error = res1.error;
+        }
+
+        // Strategy B: ID match
+        if (!data && slug) {
+          const res2 = await supabase
             .from('products')
             .select('*')
             .eq('id', slug)
             .maybeSingle();
-          data = idRes.data;
-          error = idRes.error;
+          if (res2.data) data = res2.data;
+        }
+
+        // Strategy C: Fetch all products and match slug / title / id or pick first active
+        if (!data) {
+          const res3 = await supabase
+            .from('products')
+            .select('*')
+            .eq('status', 'active')
+            .order('created_at', { ascending: false });
+
+          if (res3.data && res3.data.length > 0) {
+            const cleanTarget = (slug || '').toLowerCase().trim();
+            const matched = res3.data.find(
+              (p: any) =>
+                p.id === slug ||
+                (p.slug && p.slug.toLowerCase().trim() === cleanTarget) ||
+                (p.title && p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanTarget)
+            );
+            data = matched || res3.data[0];
+          }
         }
 
         if (isMounted) {
-          if (!error && data) {
+          if (data) {
             setProduct(mapSupabaseProductToProduct(data));
           } else {
-            const foundFallback = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
+            const foundFallback = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug) || INITIAL_PRODUCTS[0];
             setProduct(foundFallback || null);
           }
         }
       } else {
         if (isMounted) {
-          const foundFallback = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug);
+          const foundFallback = INITIAL_PRODUCTS.find((p) => p.slug === slug || p.id === slug) || INITIAL_PRODUCTS[0];
           setProduct(foundFallback || null);
         }
       }
@@ -210,6 +237,19 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
     };
   }, [slug]);
 
+  // 3. Shipping Location Rate (Active location calculated at top level)
+  const activeShippingLoc = shippingLocations.find((loc) => loc.id === selectedShippingId) || shippingLocations[0];
+
+  // Automatically enforce 'full' payment if selected shipping location is not Lagos
+  useEffect(() => {
+    if (activeShippingLoc) {
+      const isLagos = (activeShippingLoc.state_region || activeShippingLoc.name || '').toLowerCase().includes('lagos');
+      if (!isLagos && paymentOption === 'pod') {
+        setPaymentOption('full');
+      }
+    }
+  }, [selectedShippingId, activeShippingLoc, paymentOption]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6">
@@ -267,9 +307,6 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const couponDiscountPercent = appliedCoupon ? appliedCoupon.discountPercent : 0;
   const couponDiscountAmount = (subtotalBeforeDiscounts * couponDiscountPercent) / 100;
 
-  // 3. Shipping Location Rate
-  const activeShippingLoc = shippingLocations.find((loc) => loc.id === selectedShippingId) || shippingLocations[0];
-
   // Check if selected Shipping Option is a Lagos State location
   const isLagosShippingOption = Boolean(
     activeShippingLoc &&
@@ -280,16 +317,6 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   // Payment on Delivery is strictly available ONLY when a Lagos Shipping Option is selected.
   // Every other shipping method MUST have only Pay Full Amount Now option.
   const effectivePaymentOption = !isLagosShippingOption ? 'full' : paymentOption;
-
-  // Automatically enforce 'full' payment if selected shipping location is not Lagos
-  useEffect(() => {
-    if (activeShippingLoc) {
-      const isLagos = (activeShippingLoc.state_region || activeShippingLoc.name || '').toLowerCase().includes('lagos');
-      if (!isLagos && paymentOption === 'pod') {
-        setPaymentOption('full');
-      }
-    }
-  }, [selectedShippingId, activeShippingLoc]);
 
   // 2. Full Payment 3% Discount Calculation
   const fullPaymentDiscountPercent = effectivePaymentOption === 'full' ? 3 : 0;
@@ -658,19 +685,40 @@ I will attach my payment receipt here.`;
       {/* A. HERO SECTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center bg-white rounded-3xl p-6 sm:p-10 border border-gray-200 shadow-sm">
-          {/* Left/Top: Primary Featured Image */}
-          <div className="relative aspect-4/3 w-full bg-[#1B2A4A] rounded-2xl overflow-hidden shadow-lg border border-gray-100 group">
-            <img
-              src={primaryImage}
-              alt={product.title}
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute top-4 left-4 z-10">
-              <span className="px-3.5 py-1.5 rounded-full bg-[#1B2A4A]/90 text-[#D1B464] text-xs font-bold uppercase tracking-wider backdrop-blur-md border border-[#D1B464]/30">
-                {FABRIC_CATEGORY_LABELS[product.category] || product.category}
-              </span>
+          {/* Left/Top: Primary Featured Image & Optional Video Showcase */}
+          <div className="space-y-4">
+            <div className="relative aspect-4/3 w-full bg-[#1B2A4A] rounded-2xl overflow-hidden shadow-lg border border-gray-100 group">
+              <img
+                src={primaryImage}
+                alt={product.title}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute top-4 left-4 z-10">
+                <span className="px-3.5 py-1.5 rounded-full bg-[#1B2A4A]/90 text-[#D1B464] text-xs font-bold uppercase tracking-wider backdrop-blur-md border border-[#D1B464]/30">
+                  {FABRIC_CATEGORY_LABELS[product.category] || product.category}
+                </span>
+              </div>
             </div>
+
+            {/* PRODUCT MOTION VIDEO SHOWCASE */}
+            {videoSource && (
+              <div className="pt-2 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#1B2A4A] uppercase tracking-wider">
+                  <Play className="w-4 h-4 text-[#D1B464] fill-[#D1B464]" />
+                  <span>Fabric Motion & Drape Video Showcase</span>
+                </div>
+                <ProductVideoPlayer
+                  videoUrl={videoSource}
+                  title={`${product.title} Motion Showcase`}
+                  posterImage={primaryImage}
+                  aspectRatio="aspect-video"
+                  autoPlay={true}
+                  muted={true}
+                  controls={true}
+                />
+              </div>
+            )}
           </div>
 
           {/* Right/Bottom: Title, Fabric Type Tag, Price Tag, Quick Jump */}
@@ -828,30 +876,35 @@ I will attach my payment receipt here.`;
           </div>
 
           {/* Admin Gallery Image 1 or Video if present */}
-          <div className="aspect-4/3 w-full bg-black/40 rounded-2xl overflow-hidden border border-[#D1B464]/30">
-            {galleryImages[0] ? (
-              <img
-                src={galleryImages[0]}
-                alt="Craftsmanship detail 1"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
+          <div className="w-full">
+            {videoSource ? (
+              <ProductVideoPlayer
+                videoUrl={videoSource}
+                title={`${product.title} Craftsmanship Video`}
+                posterImage={galleryImages[0] || primaryImage}
+                aspectRatio="aspect-4/3"
+                autoPlay={true}
+                muted={true}
+                controls={true}
               />
-            ) : videoSource ? (
-              <video
-                src={videoSource}
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
+            ) : galleryImages[0] ? (
+              <div className="aspect-4/3 w-full bg-black/40 rounded-2xl overflow-hidden border border-[#D1B464]/30">
+                <img
+                  src={galleryImages[0]}
+                  alt="Craftsmanship detail 1"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              </div>
             ) : (
-              <img
-                src={primaryImage}
-                alt="Craftsmanship detail"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
+              <div className="aspect-4/3 w-full bg-black/40 rounded-2xl overflow-hidden border border-[#D1B464]/30">
+                <img
+                  src={primaryImage}
+                  alt="Craftsmanship detail"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+              </div>
             )}
           </div>
         </div>
