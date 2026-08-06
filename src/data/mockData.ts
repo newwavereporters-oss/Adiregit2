@@ -1,4 +1,9 @@
 import { Product, Lead, ExchangeRates } from '../types/admin';
+import juliusAnkaraHero from '../assets/images/Julius holding an ankara clothe.png';
+import adire3 from '../assets/images/Adire 3.jpeg';
+import adire4 from '../assets/images/Adire 4.jpeg';
+import adire6 from '../assets/images/Adire 6.jpeg';
+import adire10 from '../assets/images/Adire 10.jpeg';
 
 export const INITIAL_EXCHANGE_RATES: ExchangeRates = {
   NGN: 1,
@@ -18,6 +23,7 @@ export interface FabricGuideItem {
   characteristics: string;
   idealOccasion: string;
   recommendedCare: string;
+  imageUrl?: string;
 }
 
 export const CORE_FABRICS: FabricGuideItem[] = [
@@ -32,6 +38,7 @@ export const CORE_FABRICS: FabricGuideItem[] = [
     characteristics: 'Soft crisp handfeel with deep organic indigo saturation. Perfect structure for kaftans, shirts, and tailored trousers.',
     idealOccasion: 'Daily Luxury, Executive Casual & Cultural Celebrations',
     recommendedCare: 'Hand wash cold with gentle soap. Air dry in shade to preserve indigo lusters.',
+    imageUrl: adire3,
   },
   {
     id: 'adire-tshirts',
@@ -44,6 +51,7 @@ export const CORE_FABRICS: FabricGuideItem[] = [
     characteristics: 'Boxy streetwear drape with 1-of-1 hand-marbled tie-dye patterns along shoulders and chest.',
     idealOccasion: 'Urban Fashion, Music Festivals & Contemporary Layering',
     recommendedCare: 'Machine wash inside out on delicate cycle. Tumble dry low.',
+    imageUrl: adire4,
   },
   {
     id: 'adire-crepe',
@@ -56,6 +64,7 @@ export const CORE_FABRICS: FabricGuideItem[] = [
     characteristics: 'Slight diagonal stretch with ethereal fluid motion. Captures light with subtle matte sheen for evening gowns and agbadas.',
     idealOccasion: 'Red Carpet, Black Tie Galas & Royal Weddings',
     recommendedCare: 'Dry clean recommended or delicate hand wash.',
+    imageUrl: adire6,
   },
   {
     id: 'adire-chiffon',
@@ -68,6 +77,7 @@ export const CORE_FABRICS: FabricGuideItem[] = [
     characteristics: 'Ethereal sheer texture that catches the breeze effortless. Designed for layering over inner gowns or swimwear.',
     idealOccasion: 'Resort Wear, Evening Dusters & Fashion Show Layering',
     recommendedCare: 'Hand wash gently in cool water. Do not wring.',
+    imageUrl: adire10,
   },
   {
     id: 'adire-rayon',
@@ -80,6 +90,7 @@ export const CORE_FABRICS: FabricGuideItem[] = [
     characteristics: 'Exceptionally cool on warm skin with liquid-like drape. Ideal for tropical climates and flowing resort shirts.',
     idealOccasion: 'Summer Vacations, Beach Resorts & Relaxed Dining',
     recommendedCare: 'Hand wash cold. Line dry in shade.',
+    imageUrl: juliusAnkaraHero,
   },
   {
     id: 'adire-viscose',
@@ -92,6 +103,7 @@ export const CORE_FABRICS: FabricGuideItem[] = [
     characteristics: 'Smooth tactile feel with architectural structure. Retains vibrant hand-dyed contrast lines crisply.',
     idealOccasion: 'Dinner Parties, Cocktail Hour & Fine Dining',
     recommendedCare: 'Dry clean or hand wash with mild liquid soap.',
+    imageUrl: adire3,
   },
   {
     id: 'ibile',
@@ -104,6 +116,7 @@ export const CORE_FABRICS: FabricGuideItem[] = [
     characteristics: 'Heavy weight heirloom quality woven on traditional Yoruba wooden looms prior to deep organic indigo pit soaking.',
     idealOccasion: 'Heritage Collectors, Bespoke Jackets & Cultural Masterpieces',
     recommendedCare: 'Dry clean only to maintain raw loom texture.',
+    imageUrl: adire10,
   },
 ];
 

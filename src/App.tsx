@@ -38,13 +38,17 @@ import { FloatingTrackOrderCard } from './components/FloatingTrackOrderCard';
 import { mapSupabaseProductToProduct } from './utils/productMapper';
 
 import juliusAnkaraHero from './assets/images/Julius holding an ankara clothe.png';
+import adire3 from './assets/images/Adire 3.jpeg';
+import adire4 from './assets/images/Adire 4.jpeg';
+import adire6 from './assets/images/Adire 6.jpeg';
+import adire10 from './assets/images/Adire 10.jpeg';
 
 // IMAGE ASSETS
 const HERO_IMAGE = juliusAnkaraHero;
-const ARTISAN_IMAGE = '/src/assets/images/adire_artisan_craft_1785421029164.jpg';
-const FABRIC_SWATCH_IMAGE = '/src/assets/images/adire_fabric_swatch_1785421041385.jpg';
-const COLLAGE_IMAGE_2 = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80';
-const COLLAGE_IMAGE_3 = 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80';
+const ARTISAN_IMAGE = adire10;
+const FABRIC_SWATCH_IMAGE = adire3;
+const COLLAGE_IMAGE_2 = adire6;
+const COLLAGE_IMAGE_3 = adire4;
 
 export default function App() {
   // Helper to resolve current view state from window location pathname or hash
@@ -800,33 +804,41 @@ export default function App() {
                 <div className="col-span-2 rounded-2xl overflow-hidden shadow-lg border border-gray-200 aspect-[16/9] relative group">
                   <img
                     src={ARTISAN_IMAGE}
-                    alt="Yoruba Artisan Hand-Dyeing Adire"
+                    alt="Authentic Yoruba Eleko Cassava Resist Dyeing"
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/80 via-transparent to-transparent opacity-80" />
                   <div className="absolute bottom-3 left-4 text-white">
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-[#D1B464]">Step 1: Stencil & Resist</span>
-                    <p className="text-sm font-serif-title font-semibold">Hand-applied Cassava Starch (Eleko)</p>
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-[#D1B464]">Direct-to-Factory</span>
+                    <p className="text-sm font-serif-title font-semibold">Hand-applied Cassava Starch (Eleko Resist)</p>
                   </div>
                 </div>
 
                 <div className="rounded-xl overflow-hidden shadow-md border border-gray-200 aspect-[4/3] relative group">
                   <img
                     src={FABRIC_SWATCH_IMAGE}
-                    alt="Adire Indigo Swatch Detail"
+                    alt="Deep Indigo Pattern Detail"
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/70 via-transparent to-transparent opacity-60" />
+                  <span className="absolute bottom-2 left-2 text-[10px] text-white font-bold bg-[#1B2A4A]/60 px-2 py-0.5 rounded backdrop-blur-xs">
+                    Classic Swatch
+                  </span>
                 </div>
 
                 <div className="rounded-xl overflow-hidden shadow-md border border-gray-200 aspect-[4/3] relative group">
                   <img
                     src={COLLAGE_IMAGE_2}
-                    alt="Modern Adire Fashion Silhouette"
+                    alt="Modern Luxury Adire Silhouette"
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/70 via-transparent to-transparent opacity-60" />
+                  <span className="absolute bottom-2 left-2 text-[10px] text-white font-bold bg-[#1B2A4A]/60 px-2 py-0.5 rounded backdrop-blur-xs">
+                    Luxury Drape
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -895,9 +907,20 @@ export default function App() {
                       </span>
                     </div>
 
-                    <div className={`w-full h-24 rounded-xl bg-gradient-to-br ${fabric.swatchGradient} relative overflow-hidden mb-5 border border-white/20 shadow-inner flex items-center justify-center group`}>
-                      <div className="relative z-10 text-center px-2">
-                        <span className="text-xs font-serif-title font-semibold text-white/90 italic tracking-wide">
+                    <div className="w-full h-36 rounded-xl relative overflow-hidden mb-5 border border-gray-200 shadow-inner group bg-[#1B2A4A]">
+                      {fabric.imageUrl ? (
+                        <img
+                          src={fabric.imageUrl}
+                          alt={fabric.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className={`w-full h-full bg-gradient-to-br ${fabric.swatchGradient}`} />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/80 via-transparent to-transparent opacity-80" />
+                      
+                      <div className="absolute bottom-2 left-2 right-2 text-center">
+                        <span className="text-[11px] font-serif-title font-semibold text-white/95 tracking-wide drop-shadow-sm block">
                           {fabric.patternName || 'Yoruba Resist Pattern'}
                         </span>
                       </div>
@@ -932,8 +955,21 @@ export default function App() {
           {/* Selected Fabric Spec Card */}
           {selectedFabric && (
             <div className="mt-10 rounded-3xl bg-white border-2 border-[#D1B464] p-6 sm:p-8 md:p-10 shadow-2xl relative">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                <div className="lg:col-span-7 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div className="lg:col-span-4 rounded-2xl overflow-hidden shadow-md border border-gray-200 aspect-[4/3] lg:aspect-square relative group bg-[#1B2A4A]">
+                  <img
+                    src={selectedFabric.imageUrl || FABRIC_SWATCH_IMAGE}
+                    alt={selectedFabric.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/70 via-transparent to-transparent opacity-70" />
+                  <div className="absolute bottom-3 left-3 text-white">
+                    <span className="text-[10px] uppercase font-bold text-[#D1B464] tracking-widest block">Active Swatch</span>
+                    <span className="text-xs font-serif-title font-semibold">{selectedFabric.patternName}</span>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-5 space-y-5">
                   <div>
                     <h3 className="font-serif-title text-3xl font-bold text-[#1B2A4A]">
                       {selectedFabric.name}
@@ -947,9 +983,9 @@ export default function App() {
                     {selectedFabric.characteristics}
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-[#FAFAFA] border border-gray-200">
-                      <span className="text-xs uppercase font-bold text-[#1B2A4A]/70 block mb-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3.5 rounded-xl bg-[#FAFAFA] border border-gray-200">
+                      <span className="text-[11px] uppercase font-bold text-[#1B2A4A]/70 block mb-1">
                         Ideal Occasion
                       </span>
                       <p className="text-xs font-semibold text-[#1A1A1A]">
@@ -957,8 +993,8 @@ export default function App() {
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-[#FAFAFA] border border-gray-200">
-                      <span className="text-xs uppercase font-bold text-[#1B2A4A]/70 block mb-1">
+                    <div className="p-3.5 rounded-xl bg-[#FAFAFA] border border-gray-200">
+                      <span className="text-[11px] uppercase font-bold text-[#1B2A4A]/70 block mb-1">
                         Recommended Care
                       </span>
                       <p className="text-xs text-[#1A1A1A]/80">
@@ -968,8 +1004,8 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="lg:col-span-5 bg-[#1B2A4A] text-white p-6 rounded-2xl space-y-4">
-                  <h4 className="text-xs font-bold text-[#D1B464] uppercase">
+                <div className="lg:col-span-3 bg-[#1B2A4A] text-white p-6 rounded-2xl space-y-4">
+                  <h4 className="text-xs font-bold text-[#D1B464] uppercase tracking-wider">
                     Yardage Request Calculator
                   </h4>
                   <div className="flex items-center gap-2">
@@ -996,6 +1032,103 @@ export default function App() {
               </div>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* -------------------------------------------------------------
+          4B. ABEOKUTA HERITAGE LOOKBOOK SHOWCASE
+      ------------------------------------------------------------- */}
+      <section className="py-20 bg-white border-t border-[#E5E7EB] relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D1B464]/20 text-[#1B2A4A] text-xs font-bold uppercase tracking-widest border border-[#D1B464]/40">
+              <Sparkles className="w-3.5 h-3.5 text-[#1B2A4A]" />
+              <span>Authentic Abeokuta Collection</span>
+            </div>
+            <h2 className="font-serif-title text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1A1A1A]">
+              Abeokuta Master Fabric Lookbook
+            </h2>
+            <p className="text-base text-gray-600 max-w-xl mx-auto">
+              Inspect our latest hand-dyed creations — direct from master artisan dye pits in Ogun State to tailored luxury wardrobes worldwide.
+            </p>
+            <div className="w-16 h-0.5 bg-[#D1B464] mx-auto mt-2" />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200 bg-[#1B2A4A] group relative aspect-[3/4]">
+              <img
+                src={adire10}
+                alt="Adire 10 Eleko Cassava Resist"
+                className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/85 via-transparent to-transparent opacity-90" />
+              <div className="absolute bottom-4 left-4 right-4 text-white space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#D1B464] bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20">
+                  Eleko Cassava Resist
+                </span>
+                <h3 className="font-serif-title text-lg font-bold">Royal Abeokuta Indigo</h3>
+                <p className="text-xs text-gray-300">Intricate geometric line work dyed in natural organic indigo.</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200 bg-[#1B2A4A] group relative aspect-[3/4]">
+              <img
+                src={adire3}
+                alt="Adire 3 Deep Indigo Pattern"
+                className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/85 via-transparent to-transparent opacity-90" />
+              <div className="absolute bottom-4 left-4 right-4 text-white space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#D1B464] bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20">
+                  Classic Swatch
+                </span>
+                <h3 className="font-serif-title text-lg font-bold">Heritage Lineage Resist</h3>
+                <p className="text-xs text-gray-300">Traditional Yoruba motifs with crisp organic white resist lines.</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200 bg-[#1B2A4A] group relative aspect-[3/4]">
+              <img
+                src={adire4}
+                alt="Adire 4 Marbled Sunburst"
+                className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/85 via-transparent to-transparent opacity-90" />
+              <div className="absolute bottom-4 left-4 right-4 text-white space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#D1B464] bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20">
+                  Eleso Marbled
+                </span>
+                <h3 className="font-serif-title text-lg font-bold">Sunburst Tie-Dye Swirl</h3>
+                <p className="text-xs text-gray-300">Vibrant contrast patterns perfect for statement streetwear pieces.</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200 bg-[#1B2A4A] group relative aspect-[3/4]">
+              <img
+                src={adire6}
+                alt="Adire 6 Silk Crepe Silhouette"
+                className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/85 via-transparent to-transparent opacity-90" />
+              <div className="absolute bottom-4 left-4 right-4 text-white space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#D1B464] bg-white/10 px-2.5 py-0.5 rounded-full border border-white/20">
+                  Luxury Crepe
+                </span>
+                <h3 className="font-serif-title text-lg font-bold">Fluid Evening Drape</h3>
+                <p className="text-xs text-gray-300">Lightweight fluid crepe ideal for evening gowns and ceremonial wear.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <button
+              onClick={() => navigateTo('shop')}
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-[#1B2A4A] text-white font-bold text-xs uppercase tracking-wider hover:bg-[#23375e] transition-all shadow-md cursor-pointer group"
+            >
+              <span>Explore All Available Fabrics In Store</span>
+              <ArrowRight className="w-4 h-4 text-[#D1B464] group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
         </div>
       </section>
 

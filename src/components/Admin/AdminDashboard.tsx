@@ -897,8 +897,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       (c.leadEmail && c.leadEmail.toLowerCase().includes(couponSearch.toLowerCase()))
   );
 
-  // METRICS COMPUTATION
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  // METRICS COMPUTATION WITH MULTI-CURRENCY CONVERSION
+  const getOrderNgnValue = (o: Order) => {
+    const amt = Number(o.totalAmount || 0);
+    switch (o.currency) {
+      case 'USD':
+        return amt * 1600;
+      case 'GBP':
+        return amt * 1900;
+      case 'EUR':
+        return amt * 1650;
+      case 'NGN':
+      default:
+        return amt;
+    }
+  };
+
+  const totalRevenueNgn = orders.reduce((sum, o) => sum + getOrderNgnValue(o), 0);
+
+  const convertedRevenue: Record<CurrencyCode, number> = {
+    NGN: Math.round(totalRevenueNgn),
+    USD: Math.round((totalRevenueNgn / 1600) * 100) / 100,
+    GBP: Math.round((totalRevenueNgn / 1900) * 100) / 100,
+    EUR: Math.round((totalRevenueNgn / 1650) * 100) / 100,
+  };
+
+  const directRevenueByCurrency: Record<CurrencyCode, number> = {
+    NGN: orders.filter((o) => o.currency === 'NGN').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+    USD: orders.filter((o) => o.currency === 'USD').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+    GBP: orders.filter((o) => o.currency === 'GBP').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+    EUR: orders.filter((o) => o.currency === 'EUR').reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+  };
+
+  const directOrderCountsByCurrency: Record<CurrencyCode, number> = {
+    NGN: orders.filter((o) => o.currency === 'NGN').length,
+    USD: orders.filter((o) => o.currency === 'USD').length,
+    GBP: orders.filter((o) => o.currency === 'GBP').length,
+    EUR: orders.filter((o) => o.currency === 'EUR').length,
+  };
+
+  const totalRevenue = convertedRevenue[activeCurrency];
   const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length;
   const activeCouponsCount = coupons.filter((c) => c.isActive).length;
 
@@ -1232,7 +1270,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                      Gross Revenue
+                      Gross Revenue ({activeCurrency})
                     </span>
                     <div className="w-8 h-8 rounded-lg bg-[#1B2A4A]/10 text-[#1B2A4A] flex items-center justify-center">
                       <DollarSign className="w-4 h-4" />
@@ -1240,7 +1278,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                   <p className="font-serif-title text-2xl font-bold text-[#1B2A4A]">
                     {currencySymbol}
-                    {totalRevenue.toLocaleString()}
+                    {totalRevenue.toLocaleString(undefined, {
+                      minimumFractionDigits: activeCurrency === 'NGN' ? 0 : 2,
+                      maximumFractionDigits: activeCurrency === 'NGN' ? 0 : 2,
+                    })}
                   </p>
                   <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
                     <TrendingUp className="w-3.5 h-3.5" />
@@ -1297,6 +1338,111 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span className="text-[11px] text-gray-500 font-medium">
                     Active Delivery Zones
                   </span>
+                </div>
+              </div>
+
+              {/* Gross Revenue For All Currencies Panel */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-2xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
+                  <div>
+                    <h3 className="font-serif-title text-lg font-bold text-[#1B2A4A] flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-[#D1B464]" />
+                      <span>Gross Revenue For All Currencies</span>
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Populated with converted total order amounts across all supported global currencies.
+                    </p>
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1B2A4A]/5 text-[#1B2A4A] text-xs font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 text-[#D1B464]" />
+                    <span>Live Auto-Conversion</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+                  {(['NGN', 'USD', 'GBP', 'EUR'] as CurrencyCode[]).map((code) => {
+                    const symbol = CURRENCY_SYMBOLS[code];
+                    const convertedAmt = convertedRevenue[code];
+                    const directAmt = directRevenueByCurrency[code];
+                    const directCount = directOrderCountsByCurrency[code];
+                    const isActive = activeCurrency === code;
+
+                    const currencyNames: Record<CurrencyCode, string> = {
+                      NGN: 'Nigerian Naira',
+                      USD: 'US Dollar',
+                      GBP: 'British Pound',
+                      EUR: 'Euro',
+                    };
+
+                    const exchangeRatesLabel: Record<CurrencyCode, string> = {
+                      NGN: 'Base Currency (1:1)',
+                      USD: 'Rate: 1 USD = ₦1,600',
+                      GBP: 'Rate: 1 GBP = ₦1,900',
+                      EUR: 'Rate: 1 EUR = ₦1,650',
+                    };
+
+                    return (
+                      <div
+                        key={code}
+                        onClick={() => setActiveCurrency(code)}
+                        className={`p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                          isActive
+                            ? 'bg-[#1B2A4A] text-white border-[#D1B464] shadow-md ring-2 ring-[#D1B464]/30'
+                            : 'bg-[#FAFAFA] text-[#1A1A1A] border-gray-200 hover:border-[#1B2A4A]/30 hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center ${
+                                isActive ? 'bg-[#D1B464] text-[#1B2A4A]' : 'bg-[#1B2A4A]/10 text-[#1B2A4A]'
+                              }`}
+                            >
+                              {symbol}
+                            </span>
+                            <div>
+                              <span className={`text-xs font-bold uppercase tracking-wider block ${isActive ? 'text-[#D1B464]' : 'text-[#1B2A4A]'}`}>
+                                {code}
+                              </span>
+                              <span className={`text-[10px] block ${isActive ? 'text-gray-300' : 'text-gray-400'}`}>
+                                {currencyNames[code]}
+                              </span>
+                            </div>
+                          </div>
+                          {isActive && (
+                            <span className="text-[10px] uppercase font-bold bg-[#D1B464] text-[#1B2A4A] px-2.5 py-0.5 rounded-full">
+                              Active
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className={`text-[10px] uppercase font-semibold block ${isActive ? 'text-gray-300' : 'text-gray-400'}`}>
+                            Gross Revenue Total
+                          </span>
+                          <p className={`font-serif-title text-2xl font-bold ${isActive ? 'text-white' : 'text-[#1B2A4A]'}`}>
+                            {symbol}
+                            {convertedAmt.toLocaleString(undefined, {
+                              minimumFractionDigits: code === 'NGN' ? 0 : 2,
+                              maximumFractionDigits: code === 'NGN' ? 0 : 2,
+                            })}
+                          </p>
+                        </div>
+
+                        <div className={`mt-4 pt-3 border-t text-[11px] space-y-1 ${isActive ? 'border-white/10 text-gray-300' : 'border-gray-200 text-gray-500'}`}>
+                          <div className="flex items-center justify-between">
+                            <span>Direct {code} Orders:</span>
+                            <span className={`font-semibold ${isActive ? 'text-[#D1B464]' : 'text-[#1B2A4A]'}`}>
+                              {symbol}{directAmt.toLocaleString()} ({directCount})
+                            </span>
+                          </div>
+                          <div className="text-[10px] opacity-75 pt-0.5">
+                            {exchangeRatesLabel[code]}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
