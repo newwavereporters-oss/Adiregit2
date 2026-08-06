@@ -31,13 +31,13 @@ export default function CheckoutPage() {
       // Customer details
       customer_name: formData.fullName,
       customer_email: formData.email,
-      customer_phone: formData.phone,
+      customer_phon: formData.phone,
 
       // Shipping details
-      shipping_address: formData.address,
+      shipping_addre: formData.address,
       shipping_city: formData.city || formData.selectedState,
       shipping_state: formData.selectedState,
-      shipping_country: formData.country || 'Nigeria',
+      shipping_countr: formData.country || 'Nigeria',
       notes: formData.deliveryNotes || '',
 
       // Pricing & status
@@ -45,7 +45,7 @@ export default function CheckoutPage() {
       subtotal: Number(subtotal),
       shipping_cost: Number(shippingFee),
       total_amount: Number(totalAmount),
-      payment_method: 'Direct Bank Transfer',
+      payment_optior: 'full_payment',
       payment_status: 'unpaid',
       status: 'pending',
 
