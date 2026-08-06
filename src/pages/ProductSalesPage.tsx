@@ -22,6 +22,8 @@ import {
   FileText,
   ZoomIn,
   Eye,
+  Lock,
+  AlertCircle,
 } from 'lucide-react';
 import { FormattedProductDescription } from '../components/FormattedProductDescription';
 import { OrderStatusModal } from '../components/OrderStatusModal';
@@ -265,14 +267,35 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const couponDiscountPercent = appliedCoupon ? appliedCoupon.discountPercent : 0;
   const couponDiscountAmount = (subtotalBeforeDiscounts * couponDiscountPercent) / 100;
 
+  // 3. Shipping Location Rate
+  const activeShippingLoc = shippingLocations.find((loc) => loc.id === selectedShippingId) || shippingLocations[0];
+
+  // Check if selected Shipping Option is a Lagos State location
+  const isLagosShippingOption = Boolean(
+    activeShippingLoc &&
+    ((activeShippingLoc.state_region || '').toLowerCase().includes('lagos') ||
+     (activeShippingLoc.name || '').toLowerCase().includes('lagos'))
+  );
+
+  // Payment on Delivery is strictly available ONLY when a Lagos Shipping Option is selected.
+  // Every other shipping method MUST have only Pay Full Amount Now option.
+  const effectivePaymentOption = !isLagosShippingOption ? 'full' : paymentOption;
+
+  // Automatically enforce 'full' payment if selected shipping location is not Lagos
+  useEffect(() => {
+    if (activeShippingLoc) {
+      const isLagos = (activeShippingLoc.state_region || activeShippingLoc.name || '').toLowerCase().includes('lagos');
+      if (!isLagos && paymentOption === 'pod') {
+        setPaymentOption('full');
+      }
+    }
+  }, [selectedShippingId, activeShippingLoc]);
+
   // 2. Full Payment 3% Discount Calculation
-  const fullPaymentDiscountPercent = paymentOption === 'full' ? 3 : 0;
+  const fullPaymentDiscountPercent = effectivePaymentOption === 'full' ? 3 : 0;
   const fullPaymentDiscountAmount = (subtotalBeforeDiscounts * fullPaymentDiscountPercent) / 100;
 
   const totalDiscountAmount = couponDiscountAmount + fullPaymentDiscountAmount;
-
-  // 3. Shipping Location Rate
-  const activeShippingLoc = shippingLocations.find((loc) => loc.id === selectedShippingId) || shippingLocations[0];
 
   const getShippingFee = (loc: ShippingLocation | undefined) => {
     if (!loc) return 0;
@@ -286,16 +309,6 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const shippingFeeInCurrency = getShippingFee(activeShippingLoc);
 
   const grandTotal = Math.max(0, subtotalBeforeDiscounts - totalDiscountAmount + shippingFeeInCurrency);
-
-  // Check if delivery location/city is within Lagos State
-  const isLagosDelivery = (
-    (activeShippingLoc?.state_region || activeShippingLoc?.name || '').toLowerCase().includes('lagos') ||
-    (buyerCity || '').toLowerCase().includes('lagos') ||
-    (buyerAddress || '').toLowerCase().includes('lagos')
-  );
-
-  // Payment on Delivery is strictly available within Lagos State. Outside Lagos requires full payment before delivery.
-  const effectivePaymentOption = (!isLagosDelivery && paymentOption === 'pod') ? 'full' : paymentOption;
 
   // Deposit calculation for POD (Pay on Delivery: ₦5,000 NGN default)
   const depositInfo = getCommitmentDeposit(activeCurrency);
@@ -1086,18 +1099,18 @@ I will attach my payment receipt here.`;
                 {/* OPTION 1: Pay on Delivery (Commitment Deposit - Lagos State Only) */}
                 <div
                   onClick={() => {
-                    if (isLagosDelivery) {
+                    if (isLagosShippingOption) {
                       setPaymentOption('pod');
                     } else {
                       setPaymentOption('full');
                     }
                   }}
-                  className={`p-4 rounded-2xl border-2 transition-all cursor-pointer space-y-2 ${
-                    !isLagosDelivery
-                      ? 'bg-gray-100/80 border-gray-200 opacity-80'
+                  className={`p-4 rounded-2xl border-2 transition-all space-y-2 ${
+                    !isLagosShippingOption
+                      ? 'bg-gray-100/90 border-gray-200 cursor-not-allowed opacity-75'
                       : effectivePaymentOption === 'pod'
-                      ? 'bg-white border-[#1B2A4A] shadow-md'
-                      : 'bg-white/60 border-gray-200 hover:border-gray-300'
+                      ? 'bg-white border-[#1B2A4A] shadow-md cursor-pointer'
+                      : 'bg-white/60 border-gray-200 hover:border-gray-300 cursor-pointer'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -1108,23 +1121,33 @@ I will attach my payment receipt here.`;
                     <input
                       type="radio"
                       name="paymentOption"
-                      disabled={!isLagosDelivery}
+                      disabled={!isLagosShippingOption}
                       checked={effectivePaymentOption === 'pod'}
                       onChange={() => {
-                        if (isLagosDelivery) setPaymentOption('pod');
+                        if (isLagosShippingOption) setPaymentOption('pod');
                       }}
-                      className="accent-[#1B2A4A] cursor-pointer"
+                      className="accent-[#1B2A4A] cursor-pointer disabled:cursor-not-allowed"
                     />
                   </div>
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isLagosDelivery ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-800'}`}>
-                    {isLagosDelivery ? 'Lagos State Only (₦5,000 Deposit)' : 'Lagos State Deliveries Only'}
-                  </span>
+
+                  {isLagosShippingOption ? (
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">
+                      Lagos Shipping Option (₦5,000 Deposit)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold">
+                      <Lock className="w-3 h-3 text-rose-700 shrink-0" />
+                      Locked — Lagos Shipping Required
+                    </span>
+                  )}
+
                   <p className="text-[11px] text-gray-500">
-                    {isLagosDelivery
+                    {isLagosShippingOption
                       ? `Pay ${formatCurrencyValue(commitmentDepositAmount, activeCurrency)} deposit now, pay remaining balance upon inspection.`
-                      : 'Pay on Delivery is only available within Lagos state. Outside Lagos requires full payment before dispatch.'}
+                      : `Payment on Delivery is unavailable for "${activeShippingLoc?.state_region || activeShippingLoc?.name || 'Selected Location'}". Full payment is required before dispatch.`}
                   </p>
-                  {isLagosDelivery && (
+
+                  {isLagosShippingOption && (
                     <div className="pt-2 text-xs font-bold text-[#1B2A4A] border-t border-gray-100">
                       Due Now: <span className="text-emerald-700">{formatCurrencyValue(commitmentDepositAmount, activeCurrency)}</span>
                     </div>
@@ -1165,9 +1188,12 @@ I will attach my payment receipt here.`;
                 </div>
               </div>
 
-              {!isLagosDelivery && (
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
-                  <span className="font-bold">Notice:</span> Delivery location is outside Lagos State. Full payment (product total + courier fee) is required prior to shipment.
+              {!isLagosShippingOption && (
+                <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200/80 text-amber-900 text-xs flex items-start gap-2.5 shadow-xs">
+                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Shipping Location Rule:</span> The selected courier destination (<strong>{activeShippingLoc?.state_region || activeShippingLoc?.name}</strong>) is outside Lagos State. Payment on Delivery is permanently disabled for this zone. Full payment is required before dispatch.
+                  </div>
                 </div>
               )}
 
@@ -1185,7 +1211,7 @@ I will attach my payment receipt here.`;
                   </div>
                 )}
 
-                {paymentOption === 'full' && (
+                {effectivePaymentOption === 'full' && (
                   <div className="flex justify-between text-emerald-700 font-medium">
                     <span>Full Payment Discount (3%)</span>
                     <span>-{formatCurrencyValue(fullPaymentDiscountAmount, activeCurrency)}</span>
@@ -1202,7 +1228,7 @@ I will attach my payment receipt here.`;
                   <span>{formatCurrencyValue(grandTotal, activeCurrency)}</span>
                 </div>
 
-                {paymentOption === 'pod' ? (
+                {effectivePaymentOption === 'pod' ? (
                   <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px] space-y-1">
                     <div className="flex justify-between font-bold">
                       <span>1. Commitment Deposit Due Now:</span>
