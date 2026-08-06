@@ -472,6 +472,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           shipping_fee: shippingFeeInCurrency,
           shipping_cost: shippingFeeInCurrency,
           notes: newOrderRecord.adminNotes || 'Direct Transfer Checkout',
+          admin_notes: null,
           subtotal: subtotalBeforeDiscounts,
           subtotal_amount: subtotalBeforeDiscounts,
           discount_amount: totalDiscountAmount,
@@ -483,7 +484,6 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           order_status: 'pending',
           status: 'pending',
           coupon_code: appliedCoupon?.code || null,
-          admin_notes: newOrderRecord.adminNotes,
         };
 
         const { data: createdOrders, error: orderErr } = await supabase
@@ -492,6 +492,7 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           .select();
 
         if (orderErr) {
+          console.error('Order Submission Error:', orderErr.message);
           console.error('FAILED TO SAVE ORDER TO DATABASE:', orderErr.message);
           alert(`Order placement failed: ${orderErr.message}`);
           setIsSubmitting(false);

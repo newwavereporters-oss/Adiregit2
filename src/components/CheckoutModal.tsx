@@ -55,6 +55,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [shippingAddress, setShippingAddress] = useState('');
   const [shippingCity, setShippingCity] = useState('');
   const [shippingCountry, setShippingCountry] = useState('Nigeria');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
 
   // Shipping Locations State
   const [shippingLocations, setShippingLocations] = useState<ShippingLocation[]>(INITIAL_SHIPPING_LOCATIONS);
@@ -310,17 +311,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           shipping_city: shippingCity || 'Lagos',
           shipping_state: selectedLocation?.state_region || selectedLocation?.name || shippingCity || 'Lagos',
           shipping_country: shippingCountry || 'Nigeria',
-          shipping_location_id: selectedLocation?.id,
+          shipping_location_id: selectedLocation?.id || null,
           shipping_location_name: selectedLocation?.state_region || selectedLocation?.name || 'Standard Courier',
           shipping_fee: shippingFee,
           shipping_cost: shippingFee,
-          notes: '',
+          notes: deliveryNotes || '',
+          admin_notes: null,
           subtotal: subtotal,
           subtotal_amount: subtotal,
           discount_amount: discountAmount,
           total_amount: grandTotal,
           currency: activeCurrency,
           items: jsonItems,
+          payment_method: 'Direct Bank Transfer',
           payment_status: 'unpaid',
           order_status: 'pending',
           status: 'pending',
@@ -333,6 +336,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           .select();
 
         if (orderErr) {
+          console.error('Order Submission Error:', orderErr.message);
           console.error('FAILED TO SAVE ORDER TO DATABASE:', orderErr.message);
           alert(`Order placement failed: ${orderErr.message}`);
           setIsSubmitting(false);

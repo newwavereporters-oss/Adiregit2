@@ -28,32 +28,33 @@ export default function CheckoutPage() {
     const orderPayload = {
       order_number: `DSP-${Math.floor(100000 + Math.random() * 900000)}`,
 
-      // Customer Contact
+      // Customer details
       customer_name: formData.fullName,
       customer_email: formData.email,
       customer_phone: formData.phone,
 
-      // Delivery Address
+      // Shipping details
       shipping_address: formData.address,
       shipping_city: formData.city || formData.selectedState,
       shipping_state: formData.selectedState,
       shipping_country: formData.country || 'Nigeria',
-      notes: formData.deliveryNotes || '',
 
-      // Financial Metrics
+      // Notes mapping
+      notes: formData.deliveryNotes || '',
+      admin_notes: null,
+
+      // Pricing & status
       currency: currentCurrency || 'NGN',
       subtotal: Number(subtotal),
       shipping_cost: Number(shippingFee),
       shipping_fee: Number(shippingFee),
       total_amount: Number(totalAmount),
-
-      // Items Array
-      items: cartItems,
-
-      // Status Defaults
+      payment_method: 'Direct Bank Transfer',
       payment_status: 'unpaid',
       order_status: 'pending',
       status: 'pending',
+
+      items: cartItems,
     };
 
     try {
@@ -64,17 +65,18 @@ export default function CheckoutPage() {
           .select();
 
         if (error) {
-          console.error('Checkout insert error:', error.message);
-          alert(`Order failed: ${error.message}`);
+          console.error('Order Submission Error:', error.message);
+          alert(`Order placement failed: ${error.message}`);
           setSubmitting(false);
           return;
         }
 
-        console.log('Order created successfully:', data);
+        console.log('ORDER SAVED PERMANENTLY IN SUPABASE:', data);
       }
       alert('Order placed successfully!');
     } catch (err: any) {
-      alert(`Submission error: ${err.message || err}`);
+      console.error('Order Submission Error:', err.message || err);
+      alert(`Order placement failed: ${err.message || err}`);
     } finally {
       setSubmitting(false);
     }
