@@ -28,27 +28,39 @@ export default function CheckoutPage() {
     const orderPayload = {
       order_number: `DSP-${Math.floor(100000 + Math.random() * 900000)}`,
 
-      // Customer details
+      // Customer Info
       customer_name: formData.fullName,
       customer_email: formData.email,
-      customer_phon: formData.phone,
+      customer_phone: formData.phone,
 
-      // Shipping details
-      shipping_addre: formData.address,
+      // Address Details
+      shipping_address: formData.address,
       shipping_city: formData.city || formData.selectedState,
       shipping_state: formData.selectedState,
-      shipping_countr: formData.country || 'Nigeria',
-      notes: formData.deliveryNotes || '',
+      shipping_country: formData.country || 'Nigeria',
+      shipping_location_name: (formData as any).selectedLocationName || formData.selectedState,
+      shipping_location_id: (formData as any).selectedLocationId || null,
 
-      // Pricing & status
+      // Notes
+      notes: formData.deliveryNotes || '',
+      admin_notes: null,
+
+      // Pricing (Both schema variations included)
       currency: currentCurrency || 'NGN',
       subtotal: Number(subtotal),
+      subtotal_amount: Number(subtotal),
       shipping_cost: Number(shippingFee),
+      shipping_fee: Number(shippingFee),
       total_amount: Number(totalAmount),
-      payment_optior: 'full_payment',
+
+      // Payment Details & Statuses
+      payment_method: (formData as any).paymentMethod || 'Direct Bank Transfer',
+      payment_option: 'full_payment',
       payment_status: 'unpaid',
       status: 'pending',
+      order_status: 'pending',
 
+      // Items
       items: cartItems,
     };
 
