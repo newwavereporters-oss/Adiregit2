@@ -97,6 +97,9 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [copiedBank, setCopiedBank] = useState<boolean>(false);
 
+  // Lightbox & Preview state
+  const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
+
   // Video Mute state & Mobile Menu state & Tracker state
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
@@ -1251,68 +1254,61 @@ I will attach my payment receipt here.`;
         </div>
       </section>
 
-      {/* STYLE GALLERY SECTION */}
+      {/* SPECIAL STYLE GALLERY (ONLY RENDER IF SPECIAL IMAGES EXIST) */}
       {(() => {
-        const rawSpecialImages = [
-          product?.special_image_1,
-          product?.special_image_2,
-          product?.special_image_3,
-          product?.special_image_4,
-          product?.special_image_5,
-          product?.special_image_6,
-          product?.special_image_7,
-          product?.special_image_8,
-          product?.special_image_9,
-          product?.special_image_10,
-          product?.special_image_11,
-          product?.special_image_12,
-          product?.special_image_13,
-          product?.special_image_14,
-          product?.special_image_15,
-        ];
-        const validStyleImages = rawSpecialImages.filter(
-          (img): img is string => typeof img === 'string' && img.trim().length > 0
-        );
+        const galleryItems = Array.from({ length: 15 })
+          .map((_, i) => {
+            const key = `special_image_${i + 1}` as keyof Product;
+            const url = product?.[key] as string | undefined | null;
+            return {
+              label: `Style ${i + 1}`,
+              url: url && typeof url === 'string' ? url.trim() : '',
+            };
+          })
+          .filter((item) => item.url && item.url.length > 0);
 
-        if (validStyleImages.length === 0) return null;
+        if (galleryItems.length === 0) return null;
 
         return (
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-gray-200">
-            <div className="text-center space-y-2 mb-10">
+          <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-gray-200 mt-12">
+            <div className="text-center mb-8 space-y-2">
               <span className="text-[#D1B464] text-xs font-bold uppercase tracking-widest block">
                 Editorial Lookbook
               </span>
-              <h2 className="font-serif-title text-2xl sm:text-3xl font-black text-[#1B2A4A]">
+              <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#1B2A4A]">
                 Style Gallery
               </h2>
-              <p className="text-xs text-gray-500 max-w-md mx-auto">
-                Curated styling inspirations and bespoke drape variations for this textile.
+              <p className="text-xs sm:text-sm text-gray-600 max-w-md mx-auto">
+                Explore custom styling variations and lookbook inspirations.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-              {validStyleImages.map((imageUrl, index) => (
+            {/* Neat Fine Grid Boxes */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {galleryItems.map((item, idx) => (
                 <div
-                  key={index}
-                  className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all group flex flex-col"
+                  key={idx}
+                  onClick={() => setSelectedPreviewImage(item.url)}
+                  className="group cursor-pointer bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col"
                 >
-                  <div className="relative aspect-3/4 w-full overflow-hidden bg-gray-100">
+                  {/* Image Box */}
+                  <div className="aspect-3/4 w-full bg-gray-100 overflow-hidden relative">
                     <img
-                      src={imageUrl}
-                      alt={`Style ${index + 1}`}
+                      src={item.url}
+                      alt={`${product?.title || 'Product'} - ${item.label}`}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
                     />
-                    <div className="absolute top-3 left-3 bg-[#1B2A4A]/80 backdrop-blur-md px-3 py-1 rounded-full text-[#D1B464] text-[10px] font-bold uppercase tracking-wider border border-[#D1B464]/30">
-                      Style {index + 1}
+                    <div className="absolute top-2.5 left-2.5 bg-[#1B2A4A]/80 backdrop-blur-xs px-2.5 py-1 rounded-full text-[#D1B464] text-[10px] font-bold uppercase tracking-wider border border-[#D1B464]/30">
+                      {item.label}
                     </div>
                   </div>
-                  <div className="p-4 bg-white flex items-center justify-between border-t border-gray-100">
-                    <span className="font-serif-title text-sm font-bold text-[#1B2A4A]">
-                      Style {index + 1}
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">
-                      Look #{index + 1}
+
+                  {/* Neat Style Label */}
+                  <div className="p-3 text-center bg-white border-t border-gray-100">
+                    <span className="text-xs font-bold tracking-wider text-[#1B2A4A] uppercase block">
+                      {item.label}
                     </span>
                   </div>
                 </div>
@@ -1321,6 +1317,32 @@ I will attach my payment receipt here.`;
           </section>
         );
       })()}
+
+      {/* Lightbox Preview Modal */}
+      {selectedPreviewImage && (
+        <div 
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+          onClick={() => setSelectedPreviewImage(null)}
+        >
+          <div 
+            className="relative max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl bg-black border border-gray-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={selectedPreviewImage} 
+              alt="Style Preview" 
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-contain max-h-[85vh]"
+            />
+            <button 
+              onClick={() => setSelectedPreviewImage(null)}
+              className="absolute top-3 right-3 text-white bg-black/60 hover:bg-black rounded-full w-9 h-9 flex items-center justify-center font-bold text-sm cursor-pointer border border-white/20"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ORDER CONFIRMATION MODAL WITH WHATSAPP LINK */}
       <AnimatePresence>
