@@ -20,6 +20,8 @@ import {
   Volume2,
   VolumeX,
   FileText,
+  ZoomIn,
+  Eye,
 } from 'lucide-react';
 import { FormattedProductDescription } from '../components/FormattedProductDescription';
 import { OrderStatusModal } from '../components/OrderStatusModal';
@@ -701,6 +703,94 @@ I will attach my payment receipt here.`;
               <span>Order Now & Claim Deposit Discount</span>
               <ArrowDown className="w-4 h-4" />
             </button>
+
+            {/* SPECIAL STYLE GALLERY (IMMEDIATELY AFTER THE FIRST BUTTON) */}
+            {(() => {
+              const galleryItems = Array.from({ length: 15 })
+                .map((_, i) => {
+                  const key = `special_image_${i + 1}` as keyof Product;
+                  const url = product?.[key] as string | undefined | null;
+                  return {
+                    label: `Style ${i + 1}`,
+                    url: url && typeof url === 'string' ? url.trim() : '',
+                  };
+                })
+                .filter((item) => item.url && item.url.length > 0);
+
+              if (galleryItems.length === 0) return null;
+
+              return (
+                <div className="pt-8 border-t border-gray-200/80 space-y-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <Sparkles className="w-3.5 h-3.5 text-[#D1B464]" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest text-[#D1B464]">
+                          Editorial Lookbook
+                        </span>
+                      </div>
+                      <h2 className="font-serif-title text-xl sm:text-2xl font-bold text-[#1B2A4A] tracking-tight">
+                        Style Gallery & Drape Variations
+                      </h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Tap any lookbook card to open high-resolution gallery view.
+                      </p>
+                    </div>
+                    <span className="text-[10px] bg-[#1B2A4A]/5 text-[#1B2A4A] px-3.5 py-1.5 rounded-full font-bold border border-[#1B2A4A]/10 shrink-0 uppercase tracking-wider">
+                      {galleryItems.length} Look{galleryItems.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {/* Responsive Grid Layout with Editorial Styling & Hover FX */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4.5">
+                    {galleryItems.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedPreviewImage(item.url)}
+                        className="group cursor-pointer bg-white border border-gray-200/90 rounded-2xl overflow-hidden shadow-2xs hover:shadow-xl hover:border-[#D1B464]/60 transition-all duration-500 flex flex-col relative"
+                      >
+                        {/* Image Canvas Box */}
+                        <div className="aspect-3/4 w-full bg-gray-100 overflow-hidden relative">
+                          <img
+                            src={item.url}
+                            alt={`${product?.title || 'Textile'} - ${item.label}`}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+                            loading="lazy"
+                          />
+                          
+                          {/* Gradient Hover Overlay with Zoom Icon */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#1B2A4A]/85 via-[#1B2A4A]/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <div className="p-2.5 bg-[#1B2A4A]/90 text-[#D1B464] rounded-full border border-[#D1B464]/40 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg">
+                              <ZoomIn className="w-4 h-4" />
+                            </div>
+                          </div>
+
+                          {/* Top Badge: Luxury Look Tag */}
+                          <div className="absolute top-2.5 left-2.5 bg-[#1B2A4A]/85 backdrop-blur-xs px-2.5 py-1 rounded-full text-[#D1B464] text-[9px] font-bold uppercase tracking-wider border border-[#D1B464]/30 shadow-xs group-hover:bg-[#1B2A4A] group-hover:border-[#D1B464] transition-colors">
+                            {item.label}
+                          </div>
+                        </div>
+
+                        {/* Card Label & Gold Active Bar */}
+                        <div className="p-3 bg-white border-t border-gray-100 flex flex-col justify-center items-center relative">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider text-[#1B2A4A] group-hover:text-[#D1B464] transition-colors uppercase">
+                            <span>{item.label}</span>
+                            <Eye className="w-3 h-3 text-gray-400 group-hover:text-[#D1B464] transition-colors" />
+                          </div>
+                          <span className="text-[9px] text-gray-400 font-mono mt-0.5 group-hover:text-[#1B2A4A]/70 transition-colors">
+                            Bespoke Styling #{idx + 1}
+                          </span>
+
+                          {/* Animated Bottom Gold Accent Line */}
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D1B464] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </section>
@@ -1253,70 +1343,6 @@ I will attach my payment receipt here.`;
           </form>
         </div>
       </section>
-
-      {/* SPECIAL STYLE GALLERY (ONLY RENDER IF SPECIAL IMAGES EXIST) */}
-      {(() => {
-        const galleryItems = Array.from({ length: 15 })
-          .map((_, i) => {
-            const key = `special_image_${i + 1}` as keyof Product;
-            const url = product?.[key] as string | undefined | null;
-            return {
-              label: `Style ${i + 1}`,
-              url: url && typeof url === 'string' ? url.trim() : '',
-            };
-          })
-          .filter((item) => item.url && item.url.length > 0);
-
-        if (galleryItems.length === 0) return null;
-
-        return (
-          <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-gray-200 mt-12">
-            <div className="text-center mb-8 space-y-2">
-              <span className="text-[#D1B464] text-xs font-bold uppercase tracking-widest block">
-                Editorial Lookbook
-              </span>
-              <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#1B2A4A]">
-                Style Gallery
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-600 max-w-md mx-auto">
-                Explore custom styling variations and lookbook inspirations.
-              </p>
-            </div>
-
-            {/* Neat Fine Grid Boxes */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {galleryItems.map((item, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedPreviewImage(item.url)}
-                  className="group cursor-pointer bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col"
-                >
-                  {/* Image Box */}
-                  <div className="aspect-3/4 w-full bg-gray-100 overflow-hidden relative">
-                    <img
-                      src={item.url}
-                      alt={`${product?.title || 'Product'} - ${item.label}`}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <div className="absolute top-2.5 left-2.5 bg-[#1B2A4A]/80 backdrop-blur-xs px-2.5 py-1 rounded-full text-[#D1B464] text-[10px] font-bold uppercase tracking-wider border border-[#D1B464]/30">
-                      {item.label}
-                    </div>
-                  </div>
-
-                  {/* Neat Style Label */}
-                  <div className="p-3 text-center bg-white border-t border-gray-100">
-                    <span className="text-xs font-bold tracking-wider text-[#1B2A4A] uppercase block">
-                      {item.label}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      })()}
 
       {/* Lightbox Preview Modal */}
       {selectedPreviewImage && (
