@@ -81,7 +81,8 @@ export default function App() {
 
   const getSlugFromUrl = (): string => {
     const path = window.location.pathname;
-    const match = path.match(/\/(?:products|product)\/([^/]+)/);
+    const hash = window.location.hash;
+    const match = path.match(/\/(?:products|product)\/([^/]+)/) || hash.match(/(?:products|product)\/([^/]+)/);
     if (match && match[1]) {
       return match[1];
     }
@@ -112,27 +113,43 @@ export default function App() {
       setSelectedProductSlug(slug);
     }
 
-    if (window.location.pathname !== targetPath) {
+    if (window.location.pathname !== targetPath || window.location.hash) {
       window.history.pushState({ view, slug }, '', targetPath);
     }
   };
 
-  // Sync URL Path changes on Back/Forward browser navigation
+  // Sync URL Path changes on Back/Forward browser navigation & clean up hash URLs
   useEffect(() => {
-    const handleLocationChange = () => {
+    const syncAndCleanUrl = () => {
       const v = getViewFromUrl();
+      const slug = getSlugFromUrl();
       setCurrentView(v);
       if (v === 'product-sales') {
-        setSelectedProductSlug(getSlugFromUrl());
+        setSelectedProductSlug(slug);
+      }
+
+      // If user accessed via a hash URL (e.g. /#/shop), rewrite to clean URL (/shop) without reloading
+      if (window.location.hash) {
+        let cleanPath = '/';
+        if (v === 'admin-dashboard') cleanPath = '/admin-dashboard';
+        else if (v === 'admin-login') cleanPath = '/admin-signin';
+        else if (v === 'admin-register') cleanPath = '/admin-register';
+        else if (v === 'shop') cleanPath = '/shop';
+        else if (v === 'product-sales') cleanPath = `/products/${slug}`;
+
+        window.history.replaceState({ view: v, slug }, '', cleanPath);
       }
     };
 
-    window.addEventListener('popstate', handleLocationChange);
-    window.addEventListener('hashchange', handleLocationChange);
+    // Clean up hash on initial mount if present
+    syncAndCleanUrl();
+
+    window.addEventListener('popstate', syncAndCleanUrl);
+    window.addEventListener('hashchange', syncAndCleanUrl);
 
     return () => {
-      window.removeEventListener('popstate', handleLocationChange);
-      window.removeEventListener('hashchange', handleLocationChange);
+      window.removeEventListener('popstate', syncAndCleanUrl);
+      window.removeEventListener('hashchange', syncAndCleanUrl);
     };
   }, []);
 
