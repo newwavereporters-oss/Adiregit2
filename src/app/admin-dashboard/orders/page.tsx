@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { OrderStatusBadge, PaymentStatusBadge } from '../../../components/Admin/OrderStatusBadge';
+import { OrdersSummaryCards } from '../../../components/Admin/OrdersSummaryCards';
 
 interface OrderItem {
   id?: string;
@@ -41,10 +42,9 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
-  // 1. Fetch live orders
+  // Fetch real persistent orders from Supabase on mount/refresh
   const fetchOrders = async () => {
     setLoading(true);
-    let sbOrders: any[] = [];
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('orders')
@@ -52,38 +52,18 @@ export default function AdminOrdersPage() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching orders:', error.message);
-      } else if (data) {
-        sbOrders = data;
+        console.error('Error fetching orders from Supabase:', error.message);
+        setOrders([]);
+      } else {
+        setOrders(data || []);
       }
-    }
-
-    let localOrders: any[] = [];
-    try {
-      const stored = localStorage.getItem('dsp_admin_orders');
-      if (stored) localOrders = JSON.parse(stored);
-    } catch (_) {}
-
-    const orderMap = new Map<string, any>();
-    localOrders.forEach((o) => {
-      const key = o.order_number || o.orderNumber || o.id;
-      if (key) orderMap.set(key.toString(), o);
-    });
-    sbOrders.forEach((o) => {
-      const key = o.order_number || o.orderNumber || o.id;
-      if (key) orderMap.set(key.toString(), o);
-    });
-
-    const combined = Array.from(orderMap.values()).sort((a, b) => {
-      const timeA = new Date(a.created_at || a.createdAt || 0).getTime();
-      const timeB = new Date(b.created_at || b.createdAt || 0).getTime();
-      return timeB - timeA;
-    });
-
-    setOrders(combined);
-    if (selectedOrder) {
-      const updated = combined.find((o) => (o.id || o.orderNumber) === (selectedOrder.id || selectedOrder.orderNumber));
-      if (updated) setSelectedOrder(updated);
+    } else {
+      let localOrders: any[] = [];
+      try {
+        const stored = localStorage.getItem('dsp_admin_orders');
+        if (stored) localOrders = JSON.parse(stored);
+      } catch (_) {}
+      setOrders(localOrders);
     }
     setLoading(false);
   };
@@ -184,6 +164,9 @@ export default function AdminOrdersPage() {
           <span>Refresh Orders</span>
         </button>
       </div>
+
+      {/* Summary Cards: Current Month Revenue by Currency, Pending Orders, Completed Orders */}
+      <OrdersSummaryCards orders={orders} />
 
       {/* Real-time Search Input & Status Filter */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-xs mb-6">

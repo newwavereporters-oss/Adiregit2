@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { OrderStatusBadge, PaymentStatusBadge } from './OrderStatusBadge';
+import { OrdersSummaryCards } from './OrdersSummaryCards';
 import {
   LayoutDashboard,
   Package,
@@ -203,18 +204,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     };
   };
 
-  const fetchAllOrdersCombined = async (): Promise<Order[]> => {
+  const [ordersLoading, setOrdersLoading] = useState<boolean>(false);
+
+  // FETCH REAL PERSISTENT ORDERS FROM SUPABASE ON MOUNT / REFRESH
+  const fetchOrders = async (): Promise<Order[]> => {
+    setOrdersLoading(true);
     let sbOrders: Order[] = [];
+
     if (isSupabaseConfigured && supabase) {
       const { data: plainData, error: plainErr } = await supabase
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!plainErr && plainData) {
+      if (plainErr) {
+        console.error('Error fetching orders from Supabase:', plainErr.message);
+      } else if (plainData) {
         sbOrders = plainData.map(formatRawOrder);
-      } else {
-        console.warn('Supabase orders fetch error:', plainErr?.message);
       }
     }
 
@@ -234,21 +240,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (key) orderMap.set(key, o);
     });
 
-    return Array.from(orderMap.values()).sort(
+    const finalOrders = Array.from(orderMap.values()).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
+
+    setOrders(finalOrders);
+    setOrdersLoading(false);
+    return finalOrders;
   };
 
-  // Listen for local order creation events
+  const fetchAllOrdersCombined = fetchOrders;
+
+  // Listen for local order creation events & auto-fetch on mount
   useEffect(() => {
-    const sync = async () => {
-      const combined = await fetchAllOrdersCombined();
-      setOrders(combined);
-    };
-    sync();
+    fetchOrders();
 
     const handleEvent = () => {
-      sync();
+      fetchOrders();
     };
     window.addEventListener('dsp_order_created', handleEvent);
     return () => {
@@ -1488,13 +1496,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="font-serif-title text-2xl sm:text-3xl font-bold text-[#1B2A4A]">
-                    Orders Management
+                    Orders & Sales Leads
                   </h2>
                   <p className="text-xs text-gray-500">
-                    Real-time fulfillment, customer shipping addresses, and status controls.
+                    Real-time fulfillment, customer shipping addresses, and status controls straight from Supabase.
                   </p>
                 </div>
+
+                <button
+                  onClick={async () => {
+                    showToast('Fetching latest live orders from Supabase...');
+                    await fetchOrders();
+                    showToast('Orders list refreshed successfully!');
+                  }}
+                  disabled={ordersLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1B2A4A] text-white font-bold text-xs hover:bg-[#121E36] transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 text-[#D1B464] ${ordersLoading ? 'animate-spin' : ''}`} />
+                  <span>🔄 Refresh Orders List</span>
+                </button>
               </div>
+
+              {/* Summary Cards: Current Month Revenue by Currency, Pending Orders, Completed Orders */}
+              <OrdersSummaryCards orders={orders} />
 
               {/* Filters */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-gray-200 shadow-2xs">

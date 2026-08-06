@@ -458,43 +458,50 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
     // IMMEDIATELY SAVE TO SUPABASE BEFORE WHATSAPP / BANK TRANSFER MODAL
     try {
       if (isSupabaseConfigured && supabase) {
-        const { data: createdOrder, error: orderErr } = await supabase
+        const orderPayload = {
+          order_number: generatedOrderNumber,
+          customer_name: buyerName,
+          customer_email: buyerEmail,
+          customer_phone: buyerPhone,
+          shipping_address: buyerAddress,
+          shipping_city: buyerCity || 'Lagos',
+          shipping_state: activeShippingLoc?.state_region || activeShippingLoc?.name || buyerCity || 'Lagos',
+          shipping_country: activeShippingLoc?.country || 'Nigeria',
+          shipping_location_id: activeShippingLoc?.id || null,
+          shipping_location_name: activeShippingLoc?.state_region || activeShippingLoc?.name || 'Standard Courier',
+          shipping_fee: shippingFeeInCurrency,
+          shipping_cost: shippingFeeInCurrency,
+          notes: newOrderRecord.adminNotes || 'Direct Transfer Checkout',
+          subtotal: subtotalBeforeDiscounts,
+          subtotal_amount: subtotalBeforeDiscounts,
+          discount_amount: totalDiscountAmount,
+          total_amount: grandTotal,
+          currency: activeCurrency,
+          items: orderItemsPayload,
+          payment_method: 'Direct Bank Transfer',
+          payment_status: 'unpaid',
+          order_status: 'pending',
+          status: 'pending',
+          coupon_code: appliedCoupon?.code || null,
+          admin_notes: newOrderRecord.adminNotes,
+        };
+
+        const { data: createdOrders, error: orderErr } = await supabase
           .from('orders')
-          .insert([
-            {
-              order_number: generatedOrderNumber,
-              customer_name: buyerName,
-              customer_email: buyerEmail,
-              customer_phone: buyerPhone,
-              shipping_address: buyerAddress,
-              shipping_city: buyerCity || 'Lagos',
-              shipping_state: activeShippingLoc?.state_region || activeShippingLoc?.name || buyerCity || 'Lagos',
-              shipping_country: activeShippingLoc?.country || 'Nigeria',
-              shipping_location_id: activeShippingLoc?.id || null,
-              shipping_location_name: activeShippingLoc?.state_region || activeShippingLoc?.name || 'Standard Courier',
-              shipping_fee: shippingFeeInCurrency,
-              shipping_cost: shippingFeeInCurrency,
-              notes: newOrderRecord.adminNotes || 'Direct Transfer Checkout',
-              subtotal: subtotalBeforeDiscounts,
-              subtotal_amount: subtotalBeforeDiscounts,
-              discount_amount: totalDiscountAmount,
-              total_amount: grandTotal,
-              currency: activeCurrency,
-              items: orderItemsPayload,
-              payment_method: 'Direct Bank Transfer',
-              payment_status: 'unpaid',
-              order_status: 'pending',
-              status: 'pending',
-              coupon_code: appliedCoupon?.code || null,
-              admin_notes: newOrderRecord.adminNotes,
-            },
-          ])
-          .select()
-          .single();
+          .insert([orderPayload])
+          .select();
 
         if (orderErr) {
-          console.error('CRITICAL ORDER SAVE ERROR:', orderErr.message);
-        } else if (createdOrder) {
+          console.error('FAILED TO SAVE ORDER TO DATABASE:', orderErr.message);
+          alert(`Order placement failed: ${orderErr.message}`);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const createdOrder = Array.isArray(createdOrders) ? createdOrders[0] : createdOrders;
+        console.log('ORDER SAVED PERMANENTLY IN SUPABASE:', createdOrder);
+
+        if (createdOrder) {
           try {
             const dbItems = orderItemsPayload.map((item) => ({
               order_id: createdOrder.id,
@@ -511,8 +518,11 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           }
         }
       }
-    } catch (err) {
-      console.warn('Order inserted locally fallback:', err);
+    } catch (err: any) {
+      console.error('FAILED TO SAVE ORDER TO DATABASE:', err?.message || err);
+      alert(`Order placement failed: ${err?.message || 'Database connection error'}`);
+      setIsSubmitting(false);
+      return;
     }
 
     // Save to local storage for Admin Dashboard sync

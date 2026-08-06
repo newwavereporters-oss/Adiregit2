@@ -301,41 +301,48 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }));
 
         // Insert Order into `orders`
-        const { data: createdOrder, error: orderErr } = await supabase
+        const orderDbPayload = {
+          order_number: orderNum,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          shipping_address: shippingAddress,
+          shipping_city: shippingCity || 'Lagos',
+          shipping_state: selectedLocation?.state_region || selectedLocation?.name || shippingCity || 'Lagos',
+          shipping_country: shippingCountry || 'Nigeria',
+          shipping_location_id: selectedLocation?.id,
+          shipping_location_name: selectedLocation?.state_region || selectedLocation?.name || 'Standard Courier',
+          shipping_fee: shippingFee,
+          shipping_cost: shippingFee,
+          notes: '',
+          subtotal: subtotal,
+          subtotal_amount: subtotal,
+          discount_amount: discountAmount,
+          total_amount: grandTotal,
+          currency: activeCurrency,
+          items: jsonItems,
+          payment_status: 'unpaid',
+          order_status: 'pending',
+          status: 'pending',
+          coupon_code: appliedCoupon ? appliedCoupon.code : null,
+        };
+
+        const { data: createdOrders, error: orderErr } = await supabase
           .from('orders')
-          .insert([
-            {
-              order_number: orderNum,
-              customer_name: customerName,
-              customer_email: customerEmail,
-              customer_phone: customerPhone,
-              shipping_address: shippingAddress,
-              shipping_city: shippingCity || 'Lagos',
-              shipping_state: selectedLocation?.state_region || selectedLocation?.name || shippingCity || 'Lagos',
-              shipping_country: shippingCountry || 'Nigeria',
-              shipping_location_id: selectedLocation?.id,
-              shipping_location_name: selectedLocation?.state_region || selectedLocation?.name || 'Standard Courier',
-              shipping_fee: shippingFee,
-              shipping_cost: shippingFee,
-              notes: '',
-              subtotal: subtotal,
-              subtotal_amount: subtotal,
-              discount_amount: discountAmount,
-              total_amount: grandTotal,
-              currency: activeCurrency,
-              items: jsonItems,
-              payment_status: 'unpaid',
-              order_status: 'pending',
-              status: 'pending',
-              coupon_code: appliedCoupon ? appliedCoupon.code : null,
-            },
-          ])
-          .select()
-          .single();
+          .insert([orderDbPayload])
+          .select();
 
         if (orderErr) {
-          console.error('Supabase Order Insertion Error:', orderErr);
-        } else if (createdOrder) {
+          console.error('FAILED TO SAVE ORDER TO DATABASE:', orderErr.message);
+          alert(`Order placement failed: ${orderErr.message}`);
+          setIsSubmitting(false);
+          return;
+        }
+
+        const createdOrder = Array.isArray(createdOrders) ? createdOrders[0] : createdOrders;
+        console.log('ORDER SAVED PERMANENTLY IN SUPABASE:', createdOrder);
+
+        if (createdOrder) {
           // Insert items into `order_items`
           const dbItems = orderItemsPayload.map((item) => ({
             order_id: createdOrder.id,
