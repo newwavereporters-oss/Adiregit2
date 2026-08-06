@@ -38,20 +38,15 @@ export default function CheckoutPage() {
       shipping_city: formData.city || formData.selectedState,
       shipping_state: formData.selectedState,
       shipping_country: formData.country || 'Nigeria',
-
-      // Notes mapping
       notes: formData.deliveryNotes || '',
-      admin_notes: null,
 
       // Pricing & status
       currency: currentCurrency || 'NGN',
       subtotal: Number(subtotal),
       shipping_cost: Number(shippingFee),
-      shipping_fee: Number(shippingFee),
       total_amount: Number(totalAmount),
       payment_method: 'Direct Bank Transfer',
       payment_status: 'unpaid',
-      order_status: 'pending',
       status: 'pending',
 
       items: cartItems,

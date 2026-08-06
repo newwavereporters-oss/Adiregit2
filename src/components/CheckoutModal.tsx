@@ -73,6 +73,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [copiedOrderNum, setCopiedOrderNum] = useState(false);
 
+  // Payment Method State ('pay_full' | 'payment_on_delivery')
+  const [paymentMethod, setPaymentMethod] = useState<'pay_full' | 'payment_on_delivery'>('pay_full');
+
   // Fetch active shipping locations directly from Supabase with realtime updates
   useEffect(() => {
     let isMounted = true;
@@ -142,6 +145,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Selected Shipping Location
   const selectedLocation = shippingLocations.find((l) => l.id === selectedLocationId);
+
+  // Check if destination is Lagos
+  const isLagos = (
+    (selectedLocation?.state_region || selectedLocation?.name || '').toLowerCase().includes('lagos') ||
+    shippingCity.toLowerCase().includes('lagos')
+  );
+
+  // Automatically reset payment option to 'pay_full' if destination is not Lagos
+  useEffect(() => {
+    if (!isLagos && paymentMethod === 'payment_on_delivery') {
+      setPaymentMethod('pay_full');
+    }
+  }, [isLagos, paymentMethod]);
 
   // Helper to get currency rate key
   const currencyKey = activeCurrency.toLowerCase() as 'ngn' | 'usd' | 'gbp' | 'eur';
@@ -316,16 +332,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           shipping_fee: shippingFee,
           shipping_cost: shippingFee,
           notes: deliveryNotes || '',
-          admin_notes: null,
           subtotal: subtotal,
           subtotal_amount: subtotal,
           discount_amount: discountAmount,
           total_amount: grandTotal,
           currency: activeCurrency,
           items: jsonItems,
-          payment_method: 'Direct Bank Transfer',
+          payment_method: paymentMethod === 'payment_on_delivery' ? 'Payment on Delivery' : 'Direct Bank Transfer',
           payment_status: 'unpaid',
-          order_status: 'pending',
           status: 'pending',
           coupon_code: appliedCoupon ? appliedCoupon.code : null,
         };
@@ -687,6 +701,107 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       </span>
                     </div>
                   )}
+                </div>
+
+                {/* Payment Method Selection Section */}
+                <div className="pt-4 border-t border-gray-200 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-[#D1B464]" />
+                    <h3 className="font-serif-title text-base font-bold text-[#1B2A4A]">
+                      Select Payment Option
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Pay Full Amount Now Option (Always available) */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('pay_full')}
+                      className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                        paymentMethod === 'pay_full'
+                          ? 'border-[#D1B464] bg-amber-50/40 shadow-xs'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-[#1B2A4A] flex items-center gap-1.5">
+                          <Building className="w-3.5 h-3.5 text-[#D1B464]" />
+                          Pay Full Amount Now
+                        </span>
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                            paymentMethod === 'pay_full'
+                              ? 'border-[#D1B464] bg-[#D1B464]'
+                              : 'border-gray-300'
+                          }`}
+                        >
+                          {paymentMethod === 'pay_full' && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-gray-500 leading-tight">
+                        Instant order confirmation & priority fulfillment queue.
+                      </p>
+                    </button>
+
+                    {/* Payment on Delivery Option (Only shown if isLagos is true) */}
+                    {isLagos ? (
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('payment_on_delivery')}
+                        className={`p-3.5 rounded-xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                          paymentMethod === 'payment_on_delivery'
+                            ? 'border-[#D1B464] bg-amber-50/40 shadow-xs'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-bold text-[#1B2A4A] flex items-center gap-1.5">
+                            <Truck className="w-3.5 h-3.5 text-amber-600" />
+                            Payment on Delivery
+                          </span>
+                          <div
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                              paymentMethod === 'payment_on_delivery'
+                                ? 'border-[#D1B464] bg-[#D1B464]'
+                                : 'border-gray-300'
+                            }`}
+                          >
+                            {paymentMethod === 'payment_on_delivery' && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-gray-500 leading-tight">
+                          Pay upon package arrival in Lagos State.
+                        </p>
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {!isLagos && (
+                    <div className="p-3 bg-amber-50/60 border border-amber-200/60 rounded-xl text-[11px] text-amber-900 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                      <span>
+                        Payment on Delivery is unavailable outside Lagos State. Full payment is required prior to courier dispatch.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Delivery Notes / Special Instructions */}
+                <div className="pt-4 border-t border-gray-200 space-y-1.5">
+                  <label className="block text-xs font-bold text-[#1B2A4A] uppercase tracking-wider">
+                    Delivery Notes / Special Instructions (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={deliveryNotes}
+                    onChange={(e) => setDeliveryNotes(e.target.value)}
+                    placeholder="e.g. Leave with gate security or call before arrival..."
+                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-xs focus:border-[#D1B464] focus:ring-2 focus:ring-[#D1B464]/20 outline-none resize-none"
+                  />
                 </div>
               </div>
 

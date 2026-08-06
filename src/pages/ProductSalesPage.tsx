@@ -472,7 +472,6 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           shipping_fee: shippingFeeInCurrency,
           shipping_cost: shippingFeeInCurrency,
           notes: newOrderRecord.adminNotes || 'Direct Transfer Checkout',
-          admin_notes: null,
           subtotal: subtotalBeforeDiscounts,
           subtotal_amount: subtotalBeforeDiscounts,
           discount_amount: totalDiscountAmount,
@@ -481,7 +480,6 @@ export const ProductSalesPage: React.FC<ProductSalesPageProps> = ({
           items: orderItemsPayload,
           payment_method: 'Direct Bank Transfer',
           payment_status: 'unpaid',
-          order_status: 'pending',
           status: 'pending',
           coupon_code: appliedCoupon?.code || null,
         };
